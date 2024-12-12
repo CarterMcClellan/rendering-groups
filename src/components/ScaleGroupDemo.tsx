@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sliders } from './Sliders';
 import { createTransformMatrix } from './math';
-import { Ellipse, Group, Line, Rect, Shape } from './Shape';
+import { Ellipse, Group, Line, Rect, Shape, Star } from './Shape';
 import { ViewportElement } from './ViewportElement';
 
 type FixedPoint = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -39,7 +39,8 @@ const ScaleGroupDemo = () => {
   const innerShapes: Shape[] = [
     new Rect({x: groupX, y: groupY, width: 40, height: 40}),
     new Ellipse({cx: groupX + groupWidth/2, cy: groupY + groupHeight/2, rx: 20, ry: 20}),
-    new Line({x1: groupX + groupWidth - lineLen, y1: groupY + groupHeight - lineLen, x2: groupX + groupWidth, y2: groupY + groupHeight})
+    new Line({x1: groupX + groupWidth - lineLen, y1: groupY + groupHeight - lineLen, x2: groupX + groupWidth, y2: groupY + groupHeight}),
+    new Star({cx: groupX + 20, cy: groupY + groupHeight - 20, outerRadiusX: 20, outerRadiusY: 20})
   ];
 
   // Transform inner shapes using the same matrix
