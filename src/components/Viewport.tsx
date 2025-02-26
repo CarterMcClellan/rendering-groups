@@ -183,19 +183,17 @@ const Viewport = () => {
         height="500" 
         className="border border-gray-300 bg-gray-50"
       >
-        
-        {/* Group with transform for position */}
-        <g transform={`translate(${groupX}, ${groupY})`}>
-          {/* Render shapes using ViewportElement */}
-          {shapes.map((shape) => (
-            <ViewportElement 
-              key={shape.id}
-              shape={shape}
-              scaleX={scaleX}
-              scaleY={scaleY}
-            />
-          ))}
-        </g>
+        {/* Render shapes directly without wrapping in a group */}
+        {shapes.map((shape) => (
+          <ViewportElement 
+            key={shape.id}
+            shape={shape}
+            scaleX={scaleX}
+            scaleY={scaleY}
+            x={groupX}
+            y={groupY}
+          />
+        ))}
         
         {/* Current bounding box of the scaled group */}
         <rect
