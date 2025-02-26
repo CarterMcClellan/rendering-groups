@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { ViewportElement } from './ViewportElement';
+import { PolygonShape } from './Shape';
 
-const ResizableSvgGroup = () => {
+const Viewport = () => {
   // Change fixedAnchor to be part of state
   const [fixedAnchor, setFixedAnchor] = useState({ x: 150, y: 150 });
   
@@ -12,11 +14,11 @@ const ResizableSvgGroup = () => {
   const [activeHandle, setActiveHandle] = useState(null);
   const svgRef = useRef(null);
   
-  // Sample polygons for demonstration
-  const polygons = [
-    { points: "0,0 30,0 15,30", fill: "#ff6347", stroke: "black", strokeWidth: 1 },
-    { points: "40,10 70,10 55,40", fill: "#4682b4", stroke: "black", strokeWidth: 1 },
-    { points: "20,50 50,50 35,80", fill: "#9acd32", stroke: "black", strokeWidth: 1 }
+  // Sample shapes for demonstration
+  const shapes = [
+    new PolygonShape("1", "0,0 30,0 15,30", "#ff6347", "black", 1),
+    new PolygonShape("2", "40,10 70,10 55,40", "#4682b4", "black", 1),
+    new PolygonShape("3", "20,50 50,50 35,80", "#9acd32", "black", 1)
   ];
   
   // Calculate scale factors (including direction for flipping)
@@ -181,28 +183,16 @@ const ResizableSvgGroup = () => {
         height="500" 
         className="border border-gray-300 bg-gray-50"
       >
-        {/* Fixed anchor point marker */}
-        <circle
-          cx={fixedAnchor.x}
-          cy={fixedAnchor.y}
-          r="5"
-          fill="#22c55e"
-          stroke="white"
-          strokeWidth="1"
-        />
         
-        {/* Group with transform for scaling and flipping */}
-        <g 
-          transform={`translate(${groupX}, ${groupY}) scale(${scaleX}, ${scaleY})`}
-        >
-          {/* Sample polygons */}
-          {polygons.map((polygon, index) => (
-            <polygon 
-              key={index}
-              points={polygon.points} 
-              fill={polygon.fill}
-              stroke={polygon.stroke}
-              strokeWidth={polygon.strokeWidth}
+        {/* Group with transform for position */}
+        <g transform={`translate(${groupX}, ${groupY})`}>
+          {/* Render shapes using ViewportElement */}
+          {shapes.map((shape) => (
+            <ViewportElement 
+              key={shape.id}
+              shape={shape}
+              scaleX={scaleX}
+              scaleY={scaleY}
             />
           ))}
         </g>
@@ -251,4 +241,4 @@ const ResizableSvgGroup = () => {
   );
 };
 
-export default ResizableSvgGroup;
+export default Viewport;
