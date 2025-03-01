@@ -87,9 +87,11 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
     const scaleY = newFlipped.y ? -newHeight / initialGroupDimensions.height : newHeight / initialGroupDimensions.height;
     
     // Calculate position adjustment based on original position
-    const x = newPosition.x - initialGroupPosition.x;
-    const y = newPosition.y - initialGroupPosition.y;
-    
+    // this should be the "fixed point" which is based on which resize handle is being dragged
+    // TODO: fix
+    const x = initialGroupPosition.x;
+    const y = initialGroupPosition.y;
+
     // Update the group transform
     setCurrentGroupTransform({
       scaleX,

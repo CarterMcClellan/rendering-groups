@@ -21,6 +21,7 @@ export interface Shape {
   getFill(): string;
   getStroke(): string;
   getBoundingBox(): ShapeBoundingBox;
+  getCenter(): { x: number, y: number };
 }
 
 export interface PolygonShapeParams {
@@ -111,13 +112,25 @@ export class PolygonShape implements Shape {
     
     return { minX, minY, maxX, maxY, width, height };
   }
+
+  getCenter(): { x: number, y: number } {
+    const bbox = this.getBoundingBox();
+    return {
+      x: bbox.minX + (bbox.width / 2),
+      y: bbox.minY + (bbox.height / 2)
+    };
+  }
 }
 
 export class ShapeTransform {
+  originX: number;
+  originY: number;
   scaleX: number;
   scaleY: number;
 
-  constructor(scaleX: number = 1, scaleY: number = 1) {
+  constructor(originX: number = 0, originY: number = 0, scaleX: number = 1, scaleY: number = 1) {
+    this.originX = originX;
+    this.originY = originY;
     this.scaleX = scaleX;
     this.scaleY = scaleY;
   }
@@ -126,12 +139,9 @@ export class ShapeTransform {
     if (groupTransform) {
       this.scaleX = groupTransform.scaleX;
       this.scaleY = groupTransform.scaleY;
-    } else {
-      // Reset to default if null
-      this.scaleX = 1;
-      this.scaleY = 1;
-    }
-
+      this.originX = groupTransform.x;
+      this.originY = groupTransform.y;
+    } 
     return cloneClass(this);
   }
 }

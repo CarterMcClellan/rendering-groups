@@ -47,7 +47,6 @@ const Viewport = () => {
   const svgRef = useRef(null);
   const shapesArray = Array.from(shapesMap.values());
 
-  // Calculate group properties whenever selection changes
   const calculateGroupProperties = () => {
     if (selectedShapeIds.length === 0) {
       setInitialGroupDimensions(null);
@@ -91,7 +90,7 @@ const Viewport = () => {
           <ViewportElement 
             key={shape.id}
             shape={shape}
-            groupTransform={shapeTransforms.get(shape.id) || null}
+            shapeTransform={shapeTransforms.get(shape.id) || null}
             isSelected={selectedShapeIds.includes(shape.id) || false}
             onClick={() => {
               if (selectedShapeIds.includes(shape.id)) {
