@@ -1,15 +1,14 @@
 import { useEffect, useRef } from "react";
-import { Shape } from "./Shape";
+import { Shape, ShapeTransform } from "./Shape";
 
 type Props = {
     shape: Shape;
-    scaleX: number;
-    scaleY: number;
-    x: number;
-    y: number;
+    groupTransform: ShapeTransform | null;
+    isSelected?: boolean;
+    onClick?: () => void;
 }
 
-export const ViewportElement = ({ shape, scaleX, scaleY, x, y }: Props) => {
+export const ViewportElement = ({ shape, groupTransform, isSelected = false, onClick }: Props) => {
     const fillRef = useRef<SVGGElement>(null);
     const strokeRef = useRef<SVGGElement>(null);
 
@@ -22,8 +21,18 @@ export const ViewportElement = ({ shape, scaleX, scaleY, x, y }: Props) => {
         strokeRef.current.innerHTML = shape.getStroke();
     }, [shape]);
 
+    // Apply transform only if groupTransform is provided
+    const transformValue = groupTransform 
+        ? `translate(${groupTransform.x}, ${groupTransform.y}) scale(${groupTransform.scaleX}, ${groupTransform.scaleY})`
+        : '';
+
     return (
-        <g className="viewport-element-container" transform={`translate(${x}, ${y}) scale(${scaleX}, ${scaleY})`}> 
+        <g 
+            className={`viewport-element-container ${isSelected ? 'selected' : ''}`} 
+            transform={transformValue}
+            onClick={onClick}
+            style={{ cursor: 'pointer' }}
+        > 
             <g className="viewport-element-stroke" ref={strokeRef} />
             <g className="viewport-element-fill" ref={fillRef} />
         </g>
