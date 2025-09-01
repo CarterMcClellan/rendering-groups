@@ -4,7 +4,7 @@ export type GroupTransform = {
   scaleY: number;
   x: number;
   y: number;
-} | null;
+};
 
 export type Position = {
   x: number;

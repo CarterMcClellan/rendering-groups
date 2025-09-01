@@ -1,6 +1,11 @@
 import { GroupTransform } from "@/types";
 import { cloneClass } from "@/utils";
 
+export type CartesianPosition = {
+  x: number;
+  y: number;
+}
+
 export type ShapeBoundingBox = {
   minX: number;
   minY: number;
@@ -10,35 +15,48 @@ export type ShapeBoundingBox = {
   height: number;
 }
 
+export type Scale = {
+  x: number;
+  y: number;
+}
+
 export interface Shape {
   id: string;
   type: 'polygon';
   points: string;
+  position: CartesianPosition;
+  scale: Scale;
   fill: string;
   stroke: string;
   strokeWidth: number;
   
   getFill(): string;
   getStroke(): string;
+  getTransformStr(): string;
   getBoundingBox(): ShapeBoundingBox;
   getCenter(): { x: number, y: number };
+  update(groupT: GroupTransform): Shape;
 }
 
 export interface PolygonShapeParams {
   id: string;
-  top: number;
-  left: number;
   sideLength: number;
   sides: number;
+  x: number;
+  y: number;
   fill?: string;
   stroke?: string;
   strokeWidth?: number;
+  scaleX?: number;
+  scaleY?: number;
 }
 
 export class PolygonShape implements Shape {
   id: string;
   type: 'polygon' = 'polygon';
   points: string;
+  position: CartesianPosition;
+  scale: Scale;
   fill: string;
   stroke: string;
   strokeWidth: number;
@@ -51,20 +69,28 @@ export class PolygonShape implements Shape {
     
     // Generate polygon points based on the parameters
     this.points = this.generatePolygonPoints(
-      params.top, 
-      params.left, 
       params.sideLength, 
       params.sides
     );
+
+    this.position = {
+      x: params.x,
+      y: params.y
+    };
+
+    this.scale = {
+      x: params.scaleX || 1,
+      y: params.scaleY || 1
+    };
   }
 
-  private generatePolygonPoints(top: number, left: number, side_len: number, n_sides: number): string {
+  private generatePolygonPoints(side_len: number, n_sides: number): string {
     // Calculate the radius of the circumscribed circle
     const radius = side_len / (2 * Math.sin(Math.PI / n_sides));
     
     // Calculate center of the polygon
-    const centerX = left + radius;
-    const centerY = top + radius;
+    const centerX = radius;
+    const centerY = radius;
     
     // Generate points for the regular polygon
     const points: string[] = [];
@@ -78,6 +104,7 @@ export class PolygonShape implements Shape {
       const y = centerY + radius * Math.sin(angle);
       
       points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+      // points.push(`${x},${y}`);
     }
     
     return points.join(' ');
@@ -101,14 +128,15 @@ export class PolygonShape implements Shape {
     
     for (const pair of pointPairs) {
       const [x, y] = pair.split(',').map(Number);
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
+      minX = Math.min(minX, x + this.position.x);
+      maxX = Math.max(maxX, x + this.position.x);
+      minY = Math.min(minY, y + this.position.y);
+      maxY = Math.max(maxY, y + this.position.y);
     }
     
     const width = maxX - minX;
     const height = maxY - minY;
+    console.log({ minX, minY, maxX, maxY, width, height });
     
     return { minX, minY, maxX, maxY, width, height };
   }
@@ -120,28 +148,14 @@ export class PolygonShape implements Shape {
       y: bbox.minY + (bbox.height / 2)
     };
   }
-}
 
-export class ShapeTransform {
-  originX: number;
-  originY: number;
-  scaleX: number;
-  scaleY: number;
-
-  constructor(originX: number = 0, originY: number = 0, scaleX: number = 1, scaleY: number = 1) {
-    this.originX = originX;
-    this.originY = originY;
-    this.scaleX = scaleX;
-    this.scaleY = scaleY;
+  getTransformStr(): string {
+    return `translate(${this.position.x}, ${this.position.y}) scale(${this.scale.x}, ${this.scale.y})`
   }
 
-  updateTransform(groupTransform: GroupTransform | null): ShapeTransform {
-    if (groupTransform) {
-      this.scaleX = groupTransform.scaleX;
-      this.scaleY = groupTransform.scaleY;
-      this.originX = groupTransform.x;
-      this.originY = groupTransform.y;
-    } 
+  update(groupT: GroupTransform): PolygonShape{
+    // this.position = { x: groupT.x, y: groupT.y };
+    this.scale = { x: groupT.scaleX, y: groupT.scaleY };
     return cloneClass(this);
   }
 }

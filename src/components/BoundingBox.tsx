@@ -1,51 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { Dimensions, GroupTransform, Position } from '../types';
+import { Scale } from './Shape';
 
 interface BoundingBoxProps {
-  initialGroupDimensions: Dimensions;
-  initialGroupPosition: Position;
-  setCurrentGroupTransform: (transform: GroupTransform | null) => void;
+  groupDimensions: Dimensions;
+  groupPosition: Position;
+  // setCurrentGroupTransform: (transform: GroupTransform | null) => void;
+  setScale: (scale: Scale) => void;
   svgRef: React.RefObject<SVGSVGElement>;
 }
 
 const BoundingBox: React.FC<BoundingBoxProps> = ({
-  initialGroupDimensions,
-  initialGroupPosition,
-  setCurrentGroupTransform,
+  groupDimensions,
+  groupPosition,
+  // setCurrentGroupTransform,
+  setScale,
   svgRef
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [activeHandle, setActiveHandle] = useState<string | null>(null);
   
-  // State to track current dimensions
-  const [currentDimensions, setCurrentDimensions] = useState<Dimensions>(initialGroupDimensions);
-  const [boxPosition, setBoxPosition] = useState<Position>(initialGroupPosition);
-  const [isFlipped, setIsFlipped] = useState({ x: false, y: false });
+  // State to track current dimensions and position
+  const [initialDimension, setInitialDimensions] = useState<Dimensions>(groupDimensions);
+  const [currentDimensions, setCurrentDimensions] = useState<Dimensions>(groupDimensions);
+  const [boxPosition, setBoxPosition] = useState<Position>(groupPosition);
+  
+  // Calculate the actual bounding box coordinates (always positive dimensions)
+  const boxX = boxPosition.x;
+  const boxY = boxPosition.y;
+  const boxWidth = currentDimensions.width;
+  const boxHeight = currentDimensions.height;
 
-  // Initialize position and dimensions when initialGroupDimensions changes
-  useEffect(() => {
-    setCurrentDimensions(initialGroupDimensions);
-    setBoxPosition(initialGroupPosition);
-    setIsFlipped({ x: false, y: false });
-  }, [initialGroupDimensions, initialGroupPosition]);
-  
-  // Calculate the bounding box coordinates
-  const boxX = boxPosition.x + (isFlipped.x ? currentDimensions.width : 0);
-  const boxY = boxPosition.y + (isFlipped.y ? currentDimensions.height : 0);
-  const boxWidth = Math.abs(currentDimensions.width);
-  const boxHeight = Math.abs(currentDimensions.height);
-  
   // Calculate handle positions
   const handlePositions = {
     right: { x: boxX + boxWidth, y: boxY + boxHeight / 2 },
     bottom: { x: boxX + boxWidth / 2, y: boxY + boxHeight },
     left: { x: boxX, y: boxY + boxHeight / 2 },
     top: { x: boxX + boxWidth / 2, y: boxY },
-    'bottom-right': { x: boxX + boxWidth, y: boxY + boxHeight },
-    'bottom-left': { x: boxX, y: boxY + boxHeight },
-    'top-right': { x: boxX + boxWidth, y: boxY },
-    'top-left': { x: boxX, y: boxY }
+    bottomRight : { x: boxX + boxWidth, y: boxY + boxHeight },
+    bottomLeft: { x: boxX, y: boxY + boxHeight },
+    topRight: { x: boxX + boxWidth, y: boxY },
+    topLeft: { x: boxX, y: boxY }
   };
   
   // Handle cursor styles
@@ -54,10 +50,10 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
     bottom: 'ns-resize',
     left: 'ew-resize',
     top: 'ns-resize',
-    'bottom-right': 'nwse-resize',
-    'bottom-left': 'nesw-resize',
-    'top-right': 'nesw-resize',
-    'top-left': 'nwse-resize'
+    bottomRight: 'nwse-resize',
+    bottomLeft: 'nesw-resize',
+    topRight: 'nesw-resize',
+    topLeft: 'nwse-resize'
   };
   
   // Handle resize start
@@ -79,30 +75,20 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
       setDragStart(transformedPoint);
     }
   };
-  
-  // Calculate group transform from current dimensions
-  const updateGroupTransform = (newWidth: number, newHeight: number, newPosition: Position, newFlipped: { x: boolean, y: boolean }) => {
-    // Calculate scale factors based on dimension changes
-    const scaleX = newFlipped.x ? -newWidth / initialGroupDimensions.width : newWidth / initialGroupDimensions.width;
-    const scaleY = newFlipped.y ? -newHeight / initialGroupDimensions.height : newHeight / initialGroupDimensions.height;
-    
-    // Calculate position adjustment based on original position
-    // this should be the "fixed point" which is based on which resize handle is being dragged
-    // TODO: fix
-    const x = initialGroupPosition.x;
-    const y = initialGroupPosition.y;
 
-    // Update the group transform
-    setCurrentGroupTransform({
-      scaleX,
-      scaleY,
-      x,
-      y
-    });
+  const updateGroupTransform = (newWidth: number, newHeight: number, newPosition: Position, flipped: { x: boolean, y: boolean }) => {
+    const scaleX = (flipped.x ? -1 : 1) * Math.abs(newWidth) / initialDimension.width;
+    const scaleY = (flipped.y ? -1 : 1) * Math.abs(newHeight) / initialDimension.height;
+    setScale({
+        x: scaleX,
+        y: scaleY
+      });
   };
   
-  // Handle resize during drag
   const handleResize = (e: MouseEvent) => {
+    /// I absolutely HATE this function.
+    ///
+    /// Its such a drag to write there is so much boiler plate and every little change I make seems to break it
     if (!isDragging || !svgRef.current || !activeHandle) return;
     
     const svgPoint = svgRef.current.createSVGPoint();
@@ -114,82 +100,146 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
     if (!screenCTM) return;
     
     const transformedPoint = svgPoint.matrixTransform(screenCTM.inverse());
+    var newWidth = currentDimensions.width;
+    var newHeight = currentDimensions.height;
+    var newX = boxPosition.x;
+    var newY = boxPosition.y;
+    var flipped = { x: false, y: false};
     
-    // Calculate new dimensions based on which handle is being dragged
-    let newWidth = currentDimensions.width;
-    let newHeight = currentDimensions.height;
-    let newX = boxPosition.x;
-    let newY = boxPosition.y;
-    let newFlippedX = isFlipped.x;
-    let newFlippedY = isFlipped.y;
-    
-    // Calculate the actual corner points based on current state
-    const startX = isFlipped.x ? boxPosition.x + currentDimensions.width : boxPosition.x;
-    const startY = isFlipped.y ? boxPosition.y + currentDimensions.height : boxPosition.y;
-    const endX = isFlipped.x ? boxPosition.x : boxPosition.x + currentDimensions.width;
-    const endY = isFlipped.y ? boxPosition.y : boxPosition.y + currentDimensions.height;
-    
-    switch (activeHandle) {
-      case 'right':
-        newWidth = transformedPoint.x - startX;
-        newFlippedX = newWidth < 0;
-        break;
-      case 'bottom':
-        newHeight = transformedPoint.y - startY;
-        newFlippedY = newHeight < 0;
-        break;
-      case 'left':
-        newWidth = endX - transformedPoint.x;
-        newX = transformedPoint.x;
-        newFlippedX = newWidth < 0;
-        break;
-      case 'top':
-        newHeight = endY - transformedPoint.y;
-        newY = transformedPoint.y;
-        newFlippedY = newHeight < 0;
-        break;
-      case 'bottom-right':
-        newWidth = transformedPoint.x - startX;
-        newHeight = transformedPoint.y - startY;
-        newFlippedX = newWidth < 0;
-        newFlippedY = newHeight < 0;
-        break;
-      case 'bottom-left':
-        newWidth = endX - transformedPoint.x;
-        newHeight = transformedPoint.y - startY;
-        newX = transformedPoint.x;
-        newFlippedX = newWidth < 0;
-        newFlippedY = newHeight < 0;
-        break;
-      case 'top-right':
-        newWidth = transformedPoint.x - startX;
-        newHeight = endY - transformedPoint.y;
-        newY = transformedPoint.y;
-        newFlippedX = newWidth < 0;
-        newFlippedY = newHeight < 0;
-        break;
-      case 'top-left':
-        newWidth = endX - transformedPoint.x;
-        newHeight = endY - transformedPoint.y;
-        newX = transformedPoint.x;
-        newY = transformedPoint.y;
-        newFlippedX = newWidth < 0;
-        newFlippedY = newHeight < 0;
-        break;
+    if (activeHandle == 'right') {
+      newWidth = transformedPoint.x - handlePositions.left.x;
+      if (newWidth < 0) {
+        newWidth = Math.abs(newWidth)
+        newX = newX - newWidth;
+        setActiveHandle('left')
+        flipped.x = true;
+      }
     }
-    
-    // Set minimum size
-    const minSize = 10;
-    const absWidth = Math.max(minSize, Math.abs(newWidth));
-    const absHeight = Math.max(minSize, Math.abs(newHeight));
-    
-    // Update current dimensions
-    setCurrentDimensions({ width: absWidth, height: absHeight });
-    setBoxPosition({ x: newX, y: newY });
-    setIsFlipped({ x: newFlippedX, y: newFlippedY });
-    
-    // Update the group transform
-    updateGroupTransform(absWidth, absHeight, { x: newX, y: newY }, { x: newFlippedX, y: newFlippedY });
+    else if (activeHandle == 'left') {
+      newX = transformedPoint.x;
+      newWidth = handlePositions.right.x - transformedPoint.x;
+      if (newWidth < 0) {
+        newWidth = Math.abs(newWidth)
+        newX = newX - newWidth;
+        setActiveHandle('right')
+        flipped.x = true;
+      }
+    }
+    else if (activeHandle == 'top') {
+      newY = transformedPoint.y;
+      newHeight =  handlePositions.bottom.y - transformedPoint.y;
+      if (newHeight < 0) {
+        newHeight = Math.abs(newHeight);
+        newY = newY - newHeight;
+        setActiveHandle('bottom')
+        flipped.y = true;
+      }
+    }
+    else if (activeHandle == 'bottom') {
+      newHeight = transformedPoint.y - handlePositions.top.y;
+      if (newHeight < 0) {
+        newHeight = Math.abs(newHeight);
+        newY = newY - newHeight;
+        setActiveHandle('top')
+        flipped.y = true;
+      }
+    }
+    else if (activeHandle == 'bottomRight') {
+      newWidth = transformedPoint.x - handlePositions.topLeft.x;
+      newHeight = transformedPoint.y - handlePositions.topLeft.y;
+      if (newWidth < 0 && newHeight < 0) {
+        newWidth = Math.abs(newWidth);
+        newHeight = Math.abs(newHeight);
+        newX = newX - newWidth;
+        newY = newY - newHeight;
+        setActiveHandle('topLeft');
+        flipped = { x: true, y: true}
+      } else if (newWidth < 0) {
+        newWidth = Math.abs(newWidth);
+        newX = newX - newWidth;
+        setActiveHandle('bottomLeft');
+        flipped.x = true;
+      } else if (newHeight < 0) {
+        newHeight = Math.abs(newHeight);
+        newY = newY - newHeight;
+        setActiveHandle('topRight');
+        flipped.y = true;
+      }
+    }
+    else if (activeHandle == 'bottomLeft') {
+      newX = transformedPoint.x;
+      newWidth = handlePositions.topRight.x - transformedPoint.x;
+      newHeight = transformedPoint.y - handlePositions.topLeft.y;
+      if (newWidth < 0 && newHeight < 0) {
+        newWidth = Math.abs(newWidth);
+        newHeight = Math.abs(newHeight);
+        newX = newX - newWidth;
+        newY = newY - newHeight;
+        setActiveHandle('topRight');
+      } else if (newWidth < 0) {
+        newWidth = Math.abs(newWidth);
+        newX = newX - newWidth;
+        setActiveHandle('bottomRight');
+      } else if (newHeight < 0) {
+        newHeight = Math.abs(newHeight);
+        newY = newY - newHeight;
+        setActiveHandle('topLeft');
+      }
+    }
+    else if (activeHandle == 'topRight') {
+      newY = transformedPoint.y;
+      newWidth = transformedPoint.x - handlePositions.topLeft.x;
+      newHeight = handlePositions.bottomLeft.y - transformedPoint.y;
+      if (newWidth < 0 && newHeight < 0) {
+        newWidth = Math.abs(newWidth);
+        newHeight = Math.abs(newHeight);
+        newX = newX - newWidth;
+        newY = newY - newHeight;
+        setActiveHandle('bottomLeft');
+      } else if (newWidth < 0) {
+        newWidth = Math.abs(newWidth);
+        newX = newX - newWidth;
+        setActiveHandle('topLeft');
+      } else if (newHeight < 0) {
+        newHeight = Math.abs(newHeight);
+        newY = newY - newHeight;
+        setActiveHandle('bottomRight');
+      }
+    }
+    else if (activeHandle == 'topLeft') {
+      newX = transformedPoint.x;
+      newY = transformedPoint.y;
+      newWidth = handlePositions.bottomRight.x - transformedPoint.x;
+      newHeight = handlePositions.bottomRight.y - transformedPoint.y;
+      if (newWidth < 0 && newHeight < 0) {
+        newWidth = Math.abs(newWidth);
+        newHeight = Math.abs(newHeight);
+        newX = newX - newWidth;
+        newY = newY - newHeight;
+        setActiveHandle('bottomRight');
+      } else if (newWidth < 0) {
+        newWidth = Math.abs(newWidth);
+        newX = newX - newWidth;
+        setActiveHandle('topRight');
+      } else if (newHeight < 0) {
+        newHeight = Math.abs(newHeight);
+        newY = newY - newHeight;
+        setActiveHandle('bottomLeft');
+      }
+    }
+
+    setCurrentDimensions({
+      width: newWidth,
+      height: newHeight
+    })
+
+    setBoxPosition({
+      x: newX,
+      y: newY
+    })
+
+    updateGroupTransform(newWidth, newHeight, {x: 0, y: 0}, flipped);
+
   };
   
   // Handle resize end
@@ -209,7 +259,7 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
       window.removeEventListener('mousemove', handleResize);
       window.removeEventListener('mouseup', handleResizeEnd);
     };
-  }, [isDragging, activeHandle, currentDimensions, boxPosition, isFlipped]);
+  }, [isDragging, activeHandle, currentDimensions, boxPosition]);
 
   return (
     <>
@@ -243,4 +293,4 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
   );
 };
 
-export default BoundingBox;  
+export default BoundingBox;
