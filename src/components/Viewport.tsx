@@ -10,8 +10,8 @@ const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 800;
 
 const START_SHAPES = new Map<string, Shape>([
-  ["1", new PolygonShape({ id: "1", x: 200, y: 200, sideLength: 200, sides: 5, fill: "#ff6347", stroke: "black", strokeWidth: 2 })],
-  // ["2", new PolygonShape({ id: "2", x: 300, y: 300, sideLength: 100, sides: 4, fill: "pink", stroke: "black", strokeWidth: 1 })],
+  ["1", new PolygonShape({ id: "1", x: 200, y: 200, sideLength: 100, sides: 5, fill: "#ff6347", stroke: "black", strokeWidth: 2 })],
+  ["2", new PolygonShape({ id: "2", x: 300, y: 300, sideLength: 100, sides: 4, fill: "pink", stroke: "black", strokeWidth: 1 })],
 ]);
 
 const Viewport = () => {

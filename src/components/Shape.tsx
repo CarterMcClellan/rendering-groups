@@ -54,6 +54,7 @@ export class PolygonShape implements Shape {
   position: CartesianPosition;
   initialPosition: CartesianPosition;
   scale: Scale;
+  initialFlip: Flipped;
   flipped: Flipped;
   fill: string;
   stroke: string;
@@ -83,6 +84,7 @@ export class PolygonShape implements Shape {
 
     this.scale = params.scale || { x: 1, y: 1};
     this.flipped = params.flipped || { x: 1, y: 1};
+    this.initialFlip = params.flipped || { x: 1, y: 1};
   }
 
   private generatePolygonPoints(side_len: number, n_sides: number): string {
@@ -150,7 +152,7 @@ export class PolygonShape implements Shape {
   }
 
   getTransformStr(): string {
-    return `translate(${this.position.x}, ${this.position.y}) scale(${this.scale.x}, ${this.scale.y})`
+    return `translate(${this.position.x}, ${this.position.y}) scale(${this.flipped.x*this.scale.x}, ${this.flipped.y*this.scale.y})`
   }
 
   update(groupT: GroupTransform): PolygonShape{
@@ -159,11 +161,11 @@ export class PolygonShape implements Shape {
       y: this.initialPosition.y + groupT.position.y 
     };
     this.scale = groupT.scale;
-    if (groupT.flipped.x) {
-      this.flipped.x *= -1;
+    if (groupT.flipped.x == -1) {
+      this.flipped.x = this.initialFlip.x * -1;
     } 
-    if(groupT.flipped.y) {
-      this.flipped.y *= -1;
+    if(groupT.flipped.y == -1) {
+      this.flipped.y = this.initialFlip.y * -1;
     }
     return cloneClass(this);
   }

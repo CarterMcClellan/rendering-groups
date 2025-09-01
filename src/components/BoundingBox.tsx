@@ -80,7 +80,6 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
     const scaleY = Math.abs(d.height) / initialDimension.height;
     const deltaX = p.x - initialPosition.x;
     const deltaY = p.y - initialPosition.y;
-    console.log({deltaX, deltaY})
     setCurrentGroupTransform({
       scale: {x: scaleX, y: scaleY},
       position: {x: deltaX, y: deltaY},
