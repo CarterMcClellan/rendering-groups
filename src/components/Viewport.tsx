@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { ViewportElement } from './ViewportElement';
-import { PolygonShape, Scale, Shape, ShapeBoundingBox } from './Shape';
+import { PolygonShape, Shape, ShapeBoundingBox } from './Shape';
 import BoundingBox from './BoundingBox';
 import { computeDimensionsFromBoundingBoxes } from '../utils';
-import { GroupTransform, Dimensions, Position } from '../types';
+import { GroupTransform, Dimensions, Position, Flipped, Scale } from '../types';
 
 // Sample shapes as a map from ID to Shape object
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 800;
 
 const START_SHAPES = new Map<string, Shape>([
-  ["1", new PolygonShape({ id: "1", x: 100, y: 100, sideLength: 200, sides: 4, fill: "#ff6347", stroke: "black", strokeWidth: 2 })],
+  ["1", new PolygonShape({ id: "1", x: 200, y: 200, sideLength: 200, sides: 5, fill: "#ff6347", stroke: "black", strokeWidth: 2 })],
   // ["2", new PolygonShape({ id: "2", x: 300, y: 300, sideLength: 100, sides: 4, fill: "pink", stroke: "black", strokeWidth: 1 })],
 ]);
 
@@ -59,16 +59,6 @@ const Viewport = () => {
     setGroupPosition(dimensionsData.fixedAnchor);
   }, [selectedShapeIds]);
 
-  const updateScale = (scale: Scale) => {
-    console.log("scale", scale)
-    setCurrentGroupTransform({
-     scaleX:  scale.x,
-     scaleY: scale.y,
-     x: currentGroupTransform?.x,
-     y: currentGroupTransform?.y
-    })
-  }
-  
   return (
     <div className="flex flex-col items-center p-8">
       <div className="mb-4">
@@ -102,8 +92,7 @@ const Viewport = () => {
           <BoundingBox
             groupDimensions={groupDimensions}
             groupPosition={groupPosition}
-            // setCurrentGroupTransform={setCurrentGroupTransform}
-            setScale={updateScale}
+            setCurrentGroupTransform={setCurrentGroupTransform}
             svgRef={svgRef}
           />
         )}

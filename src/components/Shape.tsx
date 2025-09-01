@@ -1,4 +1,4 @@
-import { GroupTransform } from "@/types";
+import { Flipped, GroupTransform, Scale } from "@/types";
 import { cloneClass } from "@/utils";
 
 export type CartesianPosition = {
@@ -15,10 +15,6 @@ export type ShapeBoundingBox = {
   height: number;
 }
 
-export type Scale = {
-  x: number;
-  y: number;
-}
 
 export interface Shape {
   id: string;
@@ -47,8 +43,8 @@ export interface PolygonShapeParams {
   fill?: string;
   stroke?: string;
   strokeWidth?: number;
-  scaleX?: number;
-  scaleY?: number;
+  scale?: Scale;
+  flipped?: Flipped;
 }
 
 export class PolygonShape implements Shape {
@@ -56,7 +52,9 @@ export class PolygonShape implements Shape {
   type: 'polygon' = 'polygon';
   points: string;
   position: CartesianPosition;
+  initialPosition: CartesianPosition;
   scale: Scale;
+  flipped: Flipped;
   fill: string;
   stroke: string;
   strokeWidth: number;
@@ -78,10 +76,13 @@ export class PolygonShape implements Shape {
       y: params.y
     };
 
-    this.scale = {
-      x: params.scaleX || 1,
-      y: params.scaleY || 1
-    };
+    this.initialPosition = {
+      x: params.x,
+      y: params.y
+    }
+
+    this.scale = params.scale || { x: 1, y: 1};
+    this.flipped = params.flipped || { x: 1, y: 1};
   }
 
   private generatePolygonPoints(side_len: number, n_sides: number): string {
@@ -136,7 +137,6 @@ export class PolygonShape implements Shape {
     
     const width = maxX - minX;
     const height = maxY - minY;
-    console.log({ minX, minY, maxX, maxY, width, height });
     
     return { minX, minY, maxX, maxY, width, height };
   }
@@ -154,8 +154,17 @@ export class PolygonShape implements Shape {
   }
 
   update(groupT: GroupTransform): PolygonShape{
-    // this.position = { x: groupT.x, y: groupT.y };
-    this.scale = { x: groupT.scaleX, y: groupT.scaleY };
+    this.position = { 
+      x: this.initialPosition.x + groupT.position.x, 
+      y: this.initialPosition.y + groupT.position.y 
+    };
+    this.scale = groupT.scale;
+    if (groupT.flipped.x) {
+      this.flipped.x *= -1;
+    } 
+    if(groupT.flipped.y) {
+      this.flipped.y *= -1;
+    }
     return cloneClass(this);
   }
 }

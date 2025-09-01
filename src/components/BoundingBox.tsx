@@ -1,20 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Dimensions, GroupTransform, Position } from '../types';
-import { Scale } from './Shape';
+import React, { useState, useEffect, useRef } from 'react';
+import { Dimensions, Flipped, GroupTransform, Position, Scale } from '../types';
 
 interface BoundingBoxProps {
   groupDimensions: Dimensions;
   groupPosition: Position;
-  // setCurrentGroupTransform: (transform: GroupTransform | null) => void;
-  setScale: (scale: Scale) => void;
+  setCurrentGroupTransform: (transform: GroupTransform | null) => void;
   svgRef: React.RefObject<SVGSVGElement>;
 }
 
 const BoundingBox: React.FC<BoundingBoxProps> = ({
   groupDimensions,
   groupPosition,
-  // setCurrentGroupTransform,
-  setScale,
+  setCurrentGroupTransform,
   svgRef
 }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -24,7 +21,9 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
   // State to track current dimensions and position
   const [initialDimension, setInitialDimensions] = useState<Dimensions>(groupDimensions);
   const [currentDimensions, setCurrentDimensions] = useState<Dimensions>(groupDimensions);
+  const [initialPosition, setInitialPosition] = useState<Position>(groupPosition)
   const [boxPosition, setBoxPosition] = useState<Position>(groupPosition);
+  const flipped = useRef<Flipped>({x: 1, y: 1});
   
   // Calculate the actual bounding box coordinates (always positive dimensions)
   const boxX = boxPosition.x;
@@ -76,13 +75,17 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
     }
   };
 
-  const updateGroupTransform = (newWidth: number, newHeight: number, newPosition: Position, flipped: { x: boolean, y: boolean }) => {
-    const scaleX = (flipped.x ? -1 : 1) * Math.abs(newWidth) / initialDimension.width;
-    const scaleY = (flipped.y ? -1 : 1) * Math.abs(newHeight) / initialDimension.height;
-    setScale({
-        x: scaleX,
-        y: scaleY
-      });
+  const updateGroupTransform = ({d, p, f}: {d: Dimensions, p: Position, f: Flipped}) => {
+    const scaleX = Math.abs(d.width) / initialDimension.width;
+    const scaleY = Math.abs(d.height) / initialDimension.height;
+    const deltaX = p.x - initialPosition.x;
+    const deltaY = p.y - initialPosition.y;
+    console.log({deltaX, deltaY})
+    setCurrentGroupTransform({
+      scale: {x: scaleX, y: scaleY},
+      position: {x: deltaX, y: deltaY},
+      flipped: f 
+    });
   };
   
   const handleResize = (e: MouseEvent) => {
@@ -104,15 +107,14 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
     var newHeight = currentDimensions.height;
     var newX = boxPosition.x;
     var newY = boxPosition.y;
-    var flipped = { x: false, y: false};
-    
+
     if (activeHandle == 'right') {
       newWidth = transformedPoint.x - handlePositions.left.x;
       if (newWidth < 0) {
         newWidth = Math.abs(newWidth)
         newX = newX - newWidth;
         setActiveHandle('left')
-        flipped.x = true;
+        flipped.current.x = -1;
       }
     }
     else if (activeHandle == 'left') {
@@ -122,17 +124,25 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
         newWidth = Math.abs(newWidth)
         newX = newX - newWidth;
         setActiveHandle('right')
-        flipped.x = true;
+        flipped.current.x = -1;
       }
     }
     else if (activeHandle == 'top') {
-      newY = transformedPoint.y;
-      newHeight =  handlePositions.bottom.y - transformedPoint.y;
+      // the top of the box will be wherever the cursor moves to
+      newY = transformedPoint.y; 
+
+      // the height will be the difference between the bottom and the
+      // newY
+      newHeight =  handlePositions.bottom.y - newY;
+
+      // imagine the box shrunk by moving the top handle down, we are going
+      // to scale the points inside by the amount the box shrunk, but we are also
+      // going to translate the points by whatever amount we just shrunk the box
       if (newHeight < 0) {
         newHeight = Math.abs(newHeight);
         newY = newY - newHeight;
         setActiveHandle('bottom')
-        flipped.y = true;
+        flipped.current.y = -1;
       }
     }
     else if (activeHandle == 'bottom') {
@@ -141,7 +151,7 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
         newHeight = Math.abs(newHeight);
         newY = newY - newHeight;
         setActiveHandle('top')
-        flipped.y = true;
+        flipped.current.y = -1;
       }
     }
     else if (activeHandle == 'bottomRight') {
@@ -153,17 +163,17 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
         newX = newX - newWidth;
         newY = newY - newHeight;
         setActiveHandle('topLeft');
-        flipped = { x: true, y: true}
+        flipped.current = { x: -1, y: -1}
       } else if (newWidth < 0) {
         newWidth = Math.abs(newWidth);
         newX = newX - newWidth;
         setActiveHandle('bottomLeft');
-        flipped.x = true;
+        flipped.current.x = -1;
       } else if (newHeight < 0) {
         newHeight = Math.abs(newHeight);
         newY = newY - newHeight;
         setActiveHandle('topRight');
-        flipped.y = true;
+        flipped.current.y = -1;
       }
     }
     else if (activeHandle == 'bottomLeft') {
@@ -238,8 +248,11 @@ const BoundingBox: React.FC<BoundingBoxProps> = ({
       y: newY
     })
 
-    updateGroupTransform(newWidth, newHeight, {x: 0, y: 0}, flipped);
-
+    updateGroupTransform({
+      d: {width: newWidth, height: newHeight}, 
+      p: {x: newX, y: newY}, 
+      f: flipped.current
+    });
   };
   
   // Handle resize end

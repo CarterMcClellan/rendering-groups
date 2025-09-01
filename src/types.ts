@@ -1,10 +1,14 @@
 // Add the GroupTransform type
 export type GroupTransform = {
-  scaleX: number;
-  scaleY: number;
+  scale: Scale;
+  position: Position;
+  flipped: Flipped;
+};
+
+export type Scale = {
   x: number;
   y: number;
-};
+}
 
 export type Position = {
   x: number;
@@ -17,8 +21,8 @@ export type Dimensions = {
 }
 
 export type Flipped = {
-  x: boolean;
-  y: boolean;
+  x: number; // -1 or 1 (-1 represents flipped)
+  y: number;
 }
 
 // Rename CurrentSelection to SelectedGroupProperties and remove selectedShapeIds
