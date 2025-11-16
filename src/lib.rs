@@ -10,8 +10,10 @@ use yew::prelude::*;
 #[function_component(App)]
 pub fn app() -> Html {
     html! {
-        <div class="flex justify-center p-8">
-            <ResizableCanvas />
+        <div class="w-full p-8">
+            <div class="flex justify-center">
+                <ResizableCanvas />
+            </div>
         </div>
     }
 }
