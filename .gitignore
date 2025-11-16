@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# Added by cargo
+/target
+Cargo.lock
+
+# Trunk build artifacts
+.trunk
