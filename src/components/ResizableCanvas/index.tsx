@@ -217,9 +217,11 @@ const ResizableCanvas = () => {
   const [flipped, setFlipped] = useState(INITIAL_STATE.flipped);
   const [isDragging, setIsDragging] = useState(false);
   const [activeHandle, setActiveHandle] = useState<HandleName | null>(null);
+  const [isMoving, setIsMoving] = useState(false);
   const [isGrouped, setIsGrouped] = useState(true);
   const [polygons, setPolygons] = useState<Polygon[]>(INITIAL_POLYGONS);
   const svgRef = useRef<SVGSVGElement>(null);
+  const moveStartRef = useRef<{ pointer: Point; anchor: Point } | null>(null);
 
   // Calculate scale factors and bounding box
   const scaleX = (flipped.x ? -1 : 1) * Math.abs(dimensions.width) / baseDimensions.width;
@@ -327,6 +329,30 @@ const ResizableCanvas = () => {
     setActiveHandle(null);
   };
 
+  // Move handlers
+  const handleMoveStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const point = clientToSVGCoords(e.nativeEvent, svgRef);
+    moveStartRef.current = { pointer: point, anchor: fixedAnchor };
+    setIsMoving(true);
+  };
+
+  const handleMove = (e: MouseEvent) => {
+    if (!isMoving || !moveStartRef.current) return;
+    const point = clientToSVGCoords(e, svgRef);
+    const deltaX = point.x - moveStartRef.current.pointer.x;
+    const deltaY = point.y - moveStartRef.current.pointer.y;
+    setFixedAnchor({
+      x: moveStartRef.current.anchor.x + deltaX,
+      y: moveStartRef.current.anchor.y + deltaY,
+    });
+  };
+
+  const handleMoveEnd = () => {
+    setIsMoving(false);
+    moveStartRef.current = null;
+  };
+
   // Attach event listeners for dragging outside the SVG
   useEffect(() => {
     if (isDragging) {
@@ -340,6 +366,18 @@ const ResizableCanvas = () => {
     };
   }, [isDragging]);
 
+  useEffect(() => {
+    if (isMoving) {
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleMoveEnd);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleMoveEnd);
+    };
+  }, [isMoving]);
+
   const handlePositions = Object.fromEntries(
     Object.entries(HANDLE_CONFIG).map(([handle, config]) => [handle, config.calc(boundingBox)])
   ) as Record<HandleName, Point>;
@@ -347,7 +385,7 @@ const ResizableCanvas = () => {
   return (
     <div className="flex flex-col items-center p-8">
       <div className="mb-4">
-        <p className="text-lg font-semibold">Drag any handle to resize or flip the shapes</p>
+        <p className="text-lg font-semibold">Drag inside the box to move, or drag any handle to resize/flip</p>
         <p>Width: {Math.abs(dimensions.width).toFixed(0)}px, Height: {Math.abs(dimensions.height).toFixed(0)}px</p>
         <p>Scale X: {Math.abs(scaleX).toFixed(2)}, Scale Y: {Math.abs(scaleY).toFixed(2)}</p>
         <p>Flipped X: {flipped.x ? 'Yes' : 'No'}, Flipped Y: {flipped.y ? 'Yes' : 'No'}</p>
@@ -378,10 +416,12 @@ const ResizableCanvas = () => {
               y={boundingBox.y}
               width={boundingBox.width}
               height={boundingBox.height}
-              fill="none"
+              fill="transparent"
               stroke="#3b82f6"
               strokeWidth="1"
               strokeDasharray="4"
+              cursor="move"
+              onMouseDown={handleMoveStart}
             />
 
             {(Object.entries(handlePositions) as [HandleName, Point][]).map(([handle, pos]) => {
