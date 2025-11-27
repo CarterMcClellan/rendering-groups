@@ -1,8 +1,213 @@
 import { useState, useRef, useEffect } from 'react';
-import { CONSTANTS, HANDLE_CONFIG, INITIAL_STATE, INITIAL_POLYGONS } from '../../constants/canvas.constants';
-import { RESIZE_TRANSFORMS } from '../../config/resizeTransforms';
-import { clientToSVGCoords, transformPolygons, calculateBoundingBox, convertToLocalCoordinates } from '../../utils/canvas.utils';
-import type { HandleName, Point, Dimensions, Polygon } from '../../types/canvas.types';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface Dimensions {
+  width: number;
+  height: number;
+}
+
+export interface BoundingBox extends Point, Dimensions {}
+
+export interface Polygon {
+  points: string;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface ResizeTransform {
+  width: number;
+  height: number;
+  anchorX: number;
+  anchorY: number;
+}
+
+export type HandleName =
+  | 'right'
+  | 'bottom'
+  | 'left'
+  | 'top'
+  | 'bottom-right'
+  | 'bottom-left'
+  | 'top-right'
+  | 'top-left';
+
+export interface HandleConfig {
+  cursor: string;
+  isCorner: boolean;
+  calc: (box: BoundingBox) => Point;
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const CONSTANTS = {
+  SVG_SIZE: 500,
+  MIN_SIZE: 10,
+  HANDLE_SIZE: { edge: 6, corner: 8 },
+  ANCHOR_RADIUS: 5,
+};
+
+const INITIAL_POLYGONS: Polygon[] = [
+  { points: "0,0 30,0 15,30", fill: "#ff6347", stroke: "black", strokeWidth: 1 },
+  { points: "40,10 70,10 55,40", fill: "#4682b4", stroke: "black", strokeWidth: 1 },
+  { points: "20,50 50,50 35,80", fill: "#9acd32", stroke: "black", strokeWidth: 1 }
+];
+
+const INITIAL_STATE = {
+  fixedAnchor: { x: 150, y: 150 } as Point,
+  dimensions: { width: 100, height: 100 } as Dimensions,
+  baseDimensions: { width: 100, height: 100 } as Dimensions,
+  flipped: { x: false, y: false },
+};
+
+const HANDLE_CONFIG: Record<HandleName, HandleConfig> = {
+  'right': { cursor: 'ew-resize', isCorner: false, calc: (box) => ({ x: box.x + box.width, y: box.y + box.height / 2 }) },
+  'bottom': { cursor: 'ns-resize', isCorner: false, calc: (box) => ({ x: box.x + box.width / 2, y: box.y + box.height }) },
+  'left': { cursor: 'ew-resize', isCorner: false, calc: (box) => ({ x: box.x, y: box.y + box.height / 2 }) },
+  'top': { cursor: 'ns-resize', isCorner: false, calc: (box) => ({ x: box.x + box.width / 2, y: box.y }) },
+  'bottom-right': { cursor: 'nwse-resize', isCorner: true, calc: (box) => ({ x: box.x + box.width, y: box.y + box.height }) },
+  'bottom-left': { cursor: 'nesw-resize', isCorner: true, calc: (box) => ({ x: box.x, y: box.y + box.height }) },
+  'top-right': { cursor: 'nesw-resize', isCorner: true, calc: (box) => ({ x: box.x + box.width, y: box.y }) },
+  'top-left': { cursor: 'nwse-resize', isCorner: true, calc: (box) => ({ x: box.x, y: box.y }) },
+};
+
+// ============================================================================
+// Resize Transform Functions
+// ============================================================================
+
+const RESIZE_TRANSFORMS: Record<
+  HandleName,
+  (current: Dimensions, point: Point, fixed: Point) => ResizeTransform
+> = {
+  'right': (current, point, fixed) => ({
+    width: point.x - fixed.x,
+    height: current.height,
+    anchorX: fixed.x,
+    anchorY: fixed.y,
+  }),
+  'bottom': (current, point, fixed) => ({
+    width: current.width,
+    height: point.y - fixed.y,
+    anchorX: fixed.x,
+    anchorY: fixed.y,
+  }),
+  'left': (current, point, fixed) => ({
+    width: fixed.x + current.width - point.x,
+    height: current.height,
+    anchorX: point.x,
+    anchorY: fixed.y,
+  }),
+  'top': (current, point, fixed) => ({
+    width: current.width,
+    height: fixed.y + current.height - point.y,
+    anchorX: fixed.x,
+    anchorY: point.y,
+  }),
+  'bottom-right': (_current, point, fixed) => ({
+    width: point.x - fixed.x,
+    height: point.y - fixed.y,
+    anchorX: fixed.x,
+    anchorY: fixed.y,
+  }),
+  'bottom-left': (current, point, fixed) => ({
+    width: fixed.x + current.width - point.x,
+    height: point.y - fixed.y,
+    anchorX: point.x,
+    anchorY: fixed.y,
+  }),
+  'top-right': (current, point, fixed) => ({
+    width: point.x - fixed.x,
+    height: fixed.y + current.height - point.y,
+    anchorX: fixed.x,
+    anchorY: point.y,
+  }),
+  'top-left': (current, point, fixed) => ({
+    width: fixed.x + current.width - point.x,
+    height: fixed.y + current.height - point.y,
+    anchorX: point.x,
+    anchorY: point.y,
+  }),
+};
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+const parsePoints = (pointsString: string): Point[] =>
+  pointsString.split(' ').map(pair => {
+    const [x, y] = pair.split(',').map(Number);
+    return { x, y };
+  });
+
+const stringifyPoints = (pointsArray: Point[]): string =>
+  pointsArray.map(p => `${p.x},${p.y}`).join(' ');
+
+const clientToSVGCoords = (e: MouseEvent, svgRef: React.RefObject<SVGSVGElement>): Point => {
+  const svgPoint = svgRef.current!.createSVGPoint();
+  svgPoint.x = e.clientX;
+  svgPoint.y = e.clientY;
+  return svgPoint.matrixTransform(svgRef.current!.getScreenCTM()!.inverse());
+};
+
+const transformPoint = (
+  point: Point,
+  scaleX: number,
+  scaleY: number,
+  translateX: number,
+  translateY: number
+): Point => ({
+  x: translateX + point.x * scaleX,
+  y: translateY + point.y * scaleY,
+});
+
+const transformPolygons = (
+  polygons: Polygon[],
+  scaleX: number,
+  scaleY: number,
+  translateX: number,
+  translateY: number
+): Polygon[] =>
+  polygons.map(polygon => ({
+    ...polygon,
+    points: stringifyPoints(
+      parsePoints(polygon.points).map(p => transformPoint(p, scaleX, scaleY, translateX, translateY))
+    )
+  }));
+
+const calculateBoundingBox = (polygonList: Polygon[]): BoundingBox => {
+  const allPoints = polygonList.flatMap(polygon => parsePoints(polygon.points));
+  const xs = allPoints.map(p => p.x);
+  const ys = allPoints.map(p => p.y);
+
+  return {
+    x: Math.min(...xs),
+    y: Math.min(...ys),
+    width: Math.max(...xs) - Math.min(...xs),
+    height: Math.max(...ys) - Math.min(...ys),
+  };
+};
+
+const convertToLocalCoordinates = (polygons: Polygon[], bbox: BoundingBox): Polygon[] =>
+  polygons.map(polygon => ({
+    ...polygon,
+    points: stringifyPoints(
+      parsePoints(polygon.points).map(p => ({ x: p.x - bbox.x, y: p.y - bbox.y }))
+    )
+  }));
+
+// ============================================================================
+// Component
+// ============================================================================
 
 const ResizableCanvas = () => {
   // State
@@ -154,17 +359,6 @@ const ResizableCanvas = () => {
         height={CONSTANTS.SVG_SIZE}
         className="border border-gray-300 bg-gray-50"
       >
-        {isGrouped && (
-          <circle
-            cx={fixedAnchor.x}
-            cy={fixedAnchor.y}
-            r={CONSTANTS.ANCHOR_RADIUS}
-            fill="#22c55e"
-            stroke="white"
-            strokeWidth="1"
-          />
-        )}
-
         {isGrouped ? (
           <>
             <g transform={`translate(${fixedAnchor.x}, ${fixedAnchor.y}) scale(${scaleX}, ${scaleY})`}>
