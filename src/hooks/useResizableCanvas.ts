@@ -62,6 +62,30 @@ export const useResizableCanvas = () => {
     setIsGrouped(true);
   };
 
+  // Helper function to remap handles based on flip state
+  const getEffectiveHandle = (handle: HandleName, flipped: { x: boolean; y: boolean }): HandleName => {
+    const handleMap: Record<HandleName, HandleName> = {
+      'top': flipped.y ? 'bottom' : 'top',
+      'bottom': flipped.y ? 'top' : 'bottom',
+      'left': flipped.x ? 'right' : 'left',
+      'right': flipped.x ? 'left' : 'right',
+      'top-left': (flipped.y && flipped.x) ? 'bottom-right' :
+                   flipped.y ? 'bottom-left' :
+                   flipped.x ? 'top-right' : 'top-left',
+      'top-right': (flipped.y && flipped.x) ? 'bottom-left' :
+                    flipped.y ? 'bottom-right' :
+                    flipped.x ? 'top-left' : 'top-right',
+      'bottom-left': (flipped.y && flipped.x) ? 'top-right' :
+                      flipped.y ? 'top-left' :
+                      flipped.x ? 'bottom-right' : 'bottom-left',
+      'bottom-right': (flipped.y && flipped.x) ? 'top-left' :
+                       flipped.y ? 'top-right' :
+                       flipped.x ? 'bottom-left' : 'bottom-right',
+    };
+
+    return handleMap[handle];
+  };
+
   // Resize handlers
   const handleResizeStart = (e: React.MouseEvent, handle: HandleName) => {
     e.stopPropagation();
@@ -73,7 +97,8 @@ export const useResizableCanvas = () => {
     if (!isDragging || !activeHandle) return;
 
     const point = clientToSVGCoords(e, svgRef);
-    const transform = RESIZE_TRANSFORMS[activeHandle](dimensions, point, fixedAnchor);
+    const effectiveHandle = getEffectiveHandle(activeHandle, flipped);
+    const transform = RESIZE_TRANSFORMS[effectiveHandle](dimensions, point, fixedAnchor);
 
     const shouldFlipX = transform.width < 0;
     const shouldFlipY = transform.height < 0;
