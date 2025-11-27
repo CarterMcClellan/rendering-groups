@@ -98,6 +98,8 @@ const ResizableCanvas = () => {
     if (!isDragging || !activeHandle) return;
 
     const point = clientToSVGCoords(e, svgRef);
+
+    // if flipped get a diff handle
     const effectiveHandle = getEffectiveHandle(activeHandle, flipped);
     const transform = RESIZE_TRANSFORMS[effectiveHandle](dimensions, point, fixedAnchor);
 
