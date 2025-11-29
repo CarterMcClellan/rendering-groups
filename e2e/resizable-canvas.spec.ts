@@ -286,6 +286,94 @@ test.describe('ResizableCanvas E2E Tests', () => {
     });
   });
 
+  test.describe('Hover Tests', () => {
+    test('TC-17: Hovering over polygon shows blue border with width 2', async ({ page }) => {
+      const svg = page.locator('svg');
+      const polygon1 = svg.locator('polygon').nth(0);
+
+      // Verify initial state (black border, width 1)
+      expect(await polygon1.getAttribute('stroke')).toBe('black');
+      expect(await polygon1.getAttribute('stroke-width')).toBe('1');
+
+      // Hover over polygon
+      await polygon1.hover();
+
+      // Verify hover state (blue border, width 2)
+      expect(await polygon1.getAttribute('stroke')).toBe('#3b82f6');
+      expect(await polygon1.getAttribute('stroke-width')).toBe('2');
+    });
+
+    test('TC-18: Hovering away from polygon clears hover effect', async ({ page }) => {
+      const svg = page.locator('svg');
+      const polygon1 = svg.locator('polygon').nth(0);
+
+      // Hover over polygon
+      await polygon1.hover();
+      expect(await polygon1.getAttribute('stroke')).toBe('#3b82f6');
+
+      // Hover away to empty space
+      const offset = await getSVGOffset(page);
+      await page.mouse.move(offset.x + 50, offset.y + 50);
+
+      // Verify hover cleared
+      expect(await polygon1.getAttribute('stroke')).toBe('black');
+      expect(await polygon1.getAttribute('stroke-width')).toBe('1');
+    });
+
+    test('TC-19: Clicking on polygon clears hover effect', async ({ page }) => {
+      const svg = page.locator('svg');
+      const polygon1 = svg.locator('polygon').nth(0);
+
+      // Hover over polygon
+      await polygon1.hover();
+      expect(await polygon1.getAttribute('stroke')).toBe('#3b82f6');
+
+      // Click on polygon
+      await polygon1.click();
+
+      // Verify hover cleared (even though polygon is selected)
+      expect(await polygon1.getAttribute('stroke')).toBe('black');
+      expect(await polygon1.getAttribute('stroke-width')).toBe('1');
+    });
+
+    test('TC-20: Starting selection rectangle clears hover effect', async ({ page }) => {
+      const svg = page.locator('svg');
+      const polygon1 = svg.locator('polygon').nth(0);
+
+      // Hover over polygon
+      await polygon1.hover();
+      expect(await polygon1.getAttribute('stroke')).toBe('#3b82f6');
+
+      // Start drawing selection rectangle
+      const offset = await getSVGOffset(page);
+      await page.mouse.move(offset.x + 50, offset.y + 50);
+      await page.mouse.down();
+
+      // Verify hover cleared
+      expect(await polygon1.getAttribute('stroke')).toBe('black');
+      expect(await polygon1.getAttribute('stroke-width')).toBe('1');
+
+      // Clean up
+      await page.mouse.up();
+    });
+
+    test('TC-21: Hover works on multiple polygons independently', async ({ page }) => {
+      const svg = page.locator('svg');
+      const polygon1 = svg.locator('polygon').nth(0);
+      const polygon2 = svg.locator('polygon').nth(1);
+
+      // Hover over first polygon
+      await polygon1.hover();
+      expect(await polygon1.getAttribute('stroke')).toBe('#3b82f6');
+      expect(await polygon2.getAttribute('stroke')).toBe('black');
+
+      // Hover over second polygon
+      await polygon2.hover();
+      expect(await polygon1.getAttribute('stroke')).toBe('black');
+      expect(await polygon2.getAttribute('stroke')).toBe('#3b82f6');
+    });
+  });
+
   test.describe('Edge Cases', () => {
     test('TC-15: Minimum size constraint enforced during resize', async ({ page }) => {
       const svg = page.locator('svg');
