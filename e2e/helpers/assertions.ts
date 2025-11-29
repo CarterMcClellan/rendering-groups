@@ -4,11 +4,14 @@ export async function assertSelectionState(
   page: Page,
   expectedIds: number[]
 ): Promise<void> {
+  const debugState = page.locator('[data-testid="debug-state"]');
+  const actualIdsAttr = await debugState.getAttribute('data-selection-ids');
+
   if (expectedIds.length === 0) {
-    await expect(page.locator('text=Selection: None')).toBeVisible();
+    expect(actualIdsAttr, 'Expected no selection (empty string)').toBe('');
   } else {
-    const idsString = expectedIds.join(', ');
-    await expect(page.locator(`text=Selection: ${idsString}`)).toBeVisible();
+    const expectedIdsString = expectedIds.join(',');
+    expect(actualIdsAttr, `Expected selection IDs: ${expectedIdsString}`).toBe(expectedIdsString);
   }
 }
 
@@ -17,12 +20,15 @@ export async function assertFlipState(
   expectedX: boolean,
   expectedY: boolean
 ): Promise<void> {
-  const flippedText = await page.locator('p').filter({ hasText: 'Flipped:' }).textContent();
+  const debugState = page.locator('[data-testid="debug-state"]');
+  const actualFlipX = await debugState.getAttribute('data-flip-x');
+  const actualFlipY = await debugState.getAttribute('data-flip-y');
 
-  expect(flippedText, `Expected flip.x to be ${expectedX} but UI shows: ${flippedText}`)
-    .toContain(`X: ${expectedX ? 'Yes' : 'No'}`);
-  expect(flippedText, `Expected flip.y to be ${expectedY} but UI shows: ${flippedText}`)
-    .toContain(`Y: ${expectedY ? 'Yes' : 'No'}`);
+  const flipXBool = actualFlipX === 'true';
+  const flipYBool = actualFlipY === 'true';
+
+  expect(flipXBool, `Expected flip.x to be ${expectedX} but got ${actualFlipX}`).toBe(expectedX);
+  expect(flipYBool, `Expected flip.y to be ${expectedY} but got ${actualFlipY}`).toBe(expectedY);
 }
 
 export async function assertBoundingBox(
