@@ -30,7 +30,8 @@ const checkSnap = (
     proposedBox: BoundingBox,
     polygons: Polygon[],
     excludedIds: number[],
-    canvasSize: number,
+    canvasWidth: number,
+    canvasHeight: number,
     threshold: number
   ): SnapResult => {
     
@@ -56,7 +57,7 @@ const checkSnap = (
   
     // Add canvas edges
     otherBoxes.push(
-      { x: 0, y: 0, width: canvasSize, height: canvasSize }
+      { x: 0, y: 0, width: canvasWidth, height: canvasHeight }
     );
   
     const newGuidelines: Guideline[] = [];
