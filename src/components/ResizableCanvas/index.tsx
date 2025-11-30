@@ -569,8 +569,12 @@ const ResizableCanvas = () => {
     <div className="flex h-screen relative">
       {/* Layer Sidebar */}
       <div className="w-64 bg-gray-100 border-r border-gray-300 overflow-y-auto">
-        <div className="p-4">
-          <h2 className="text-lg font-semibold mb-4">Layers</h2>
+        <div className="flex items-end px-4 py-3 border-b border-gray-300 bg-gray-100">
+          <span className="inline-flex items-center h-auto px-2 py-1 text-sm font-medium text-gray-900">
+            Layers
+          </span>
+        </div>
+        <div className="p-4 pt-3">
           <div className="space-y-2">
             {polygons.map((polygon, index) => {
               const isSelected = selectedIds.includes(index);
@@ -821,22 +825,18 @@ const ResizableCanvas = () => {
       {/* Properties Panel - Absolutely Positioned Overlay */}
       <div className="absolute top-0 right-0 w-80 h-full bg-gray-100 border-l border-gray-300 shadow-lg overflow-y-auto z-10 flex flex-col">
         {/* Tab Header */}
-        <div className="flex border-b border-gray-300 bg-white shrink-0">
+        <div className="flex items-end justify-center gap-6 px-4 py-3 border-b border-gray-300 bg-gray-100 shrink-0">
           <button
-            className={`flex-1 py-3 text-sm font-medium ${
-              activeTab === 'design'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+            className={`inline-flex items-center h-auto px-2 py-1 text-sm font-medium text-gray-900 bg-transparent hover:bg-gray-200 border-0 focus:outline-none rounded-md ${
+              activeTab === 'design' ? 'underline underline-offset-8 decoration-2' : ''
             }`}
             onClick={() => setActiveTab('design')}
           >
             Design
           </button>
           <button
-            className={`flex-1 py-3 text-sm font-medium ${
-              activeTab === 'chat'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+            className={`inline-flex items-center h-auto px-2 py-1 text-sm font-medium text-gray-900 bg-transparent hover:bg-gray-200 border-0 focus:outline-none rounded-md ${
+              activeTab === 'chat' ? 'underline underline-offset-8 decoration-2' : ''
             }`}
             onClick={() => setActiveTab('chat')}
           >
@@ -1028,7 +1028,7 @@ const ResizableCanvas = () => {
               </div>
               <div className="mt-auto pt-4 border-t border-gray-200">
                 <textarea
-                  className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-100 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   rows={3}
                   placeholder="Ask a question..."
                   value={chatInput}
