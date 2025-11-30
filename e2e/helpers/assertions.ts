@@ -48,16 +48,12 @@ export async function assertBoundingBox(
 }
 
 export async function assertSelectionBoxVisible(page: Page): Promise<void> {
-  const svg = page.locator('svg');
-  const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
+  const selectionBox = page.locator('[data-testid="selection-bounding-box"]');
   await expect(selectionBox).toBeVisible();
 }
 
 export async function assertNoSelection(page: Page): Promise<void> {
-  const svg = page.locator('svg');
-  const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
-  await expect(selectionBox).not.toBeVisible();
-  await assertSelectionState(page, []);
+  await expect(page.locator('[data-testid="selection-bounding-box"]')).toHaveCount(0);
 }
 
 export async function assertFixedAnchorPosition(
