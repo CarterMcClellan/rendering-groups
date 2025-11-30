@@ -5,10 +5,13 @@ export async function assertSelectionState(
   expectedIds: number[]
 ): Promise<void> {
   if (expectedIds.length === 0) {
-    await expect(page.locator('text=Selection: None')).toBeVisible();
+    await expect(page.locator('[data-testid="selection-bounding-box"]')).toHaveCount(0);
   } else {
-    const idsString = expectedIds.join(', ');
-    await expect(page.locator(`text=Selection: ${idsString}`)).toBeVisible();
+    const selectionBox = page.locator('[data-testid="selection-bounding-box"]');
+    await expect(selectionBox).toHaveCount(1);
+    const idsAttr = await selectionBox.getAttribute('data-selection-ids');
+    const actualIds = idsAttr ? idsAttr.split(',').map(Number) : [];
+    expect(actualIds).toEqual(expectedIds);
   }
 }
 
@@ -17,12 +20,12 @@ export async function assertFlipState(
   expectedX: boolean,
   expectedY: boolean
 ): Promise<void> {
-  const flippedText = await page.locator('p').filter({ hasText: 'Flipped:' }).textContent();
+  const selectionBox = page.locator('[data-testid="selection-bounding-box"]');
+  const flippedX = await selectionBox.getAttribute('data-flipped-x');
+  const flippedY = await selectionBox.getAttribute('data-flipped-y');
 
-  expect(flippedText, `Expected flip.x to be ${expectedX} but UI shows: ${flippedText}`)
-    .toContain(`X: ${expectedX ? 'Yes' : 'No'}`);
-  expect(flippedText, `Expected flip.y to be ${expectedY} but UI shows: ${flippedText}`)
-    .toContain(`Y: ${expectedY ? 'Yes' : 'No'}`);
+  expect(flippedX === 'true', `Expected flip.x to be ${expectedX} but got ${flippedX}`).toBe(expectedX);
+  expect(flippedY === 'true', `Expected flip.y to be ${expectedY} but got ${flippedY}`).toBe(expectedY);
 }
 
 export async function assertBoundingBox(
@@ -42,16 +45,12 @@ export async function assertBoundingBox(
 }
 
 export async function assertSelectionBoxVisible(page: Page): Promise<void> {
-  const svg = page.locator('svg');
-  const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
+  const selectionBox = page.locator('[data-testid="selection-bounding-box"]');
   await expect(selectionBox).toBeVisible();
 }
 
 export async function assertNoSelection(page: Page): Promise<void> {
-  const svg = page.locator('svg');
-  const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
-  await expect(selectionBox).not.toBeVisible();
-  await assertSelectionState(page, []);
+  await expect(page.locator('[data-testid="selection-bounding-box"]')).toHaveCount(0);
 }
 
 export async function assertFixedAnchorPosition(

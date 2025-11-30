@@ -1,55 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface Point {
-  x: number;
-  y: number;
-}
-
-export interface Dimensions {
-  width: number;
-  height: number;
-}
-
-export interface BoundingBox extends Point, Dimensions {}
-
-export interface Polygon {
-  points: string;
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
-}
-
-export interface ResizeTransform {
-  width: number;
-  height: number;
-  anchorX: number;
-  anchorY: number;
-}
-
-export interface SelectionRect {
-  start: Point;
-  current: Point;
-}
-
-export type HandleName =
-  | 'right'
-  | 'bottom'
-  | 'left'
-  | 'top'
-  | 'bottom-right'
-  | 'bottom-left'
-  | 'top-right'
-  | 'top-left';
-
-export interface HandleConfig {
-  cursor: string;
-  isCorner: boolean;
-  calc: (box: BoundingBox) => Point;
-}
+import { calculateSnap } from './snapLogic';
+import {
+  Point,
+  Dimensions,
+  BoundingBox,
+  Polygon,
+  ResizeTransform,
+  SelectionRect,
+  HandleName,
+  HandleConfig,
+  Guideline
+} from './types';
 
 // ============================================================================
 // Constants
@@ -60,6 +21,7 @@ const CONSTANTS = {
   MIN_SIZE: 10,
   HANDLE_SIZE: { edge: 6, corner: 8 },
   ANCHOR_RADIUS: 5,
+  SNAP_THRESHOLD: 5,
 };
 
 const INITIAL_POLYGONS: Polygon[] = [
@@ -164,31 +126,6 @@ const clientToSVGCoords = (e: MouseEvent, svgRef: React.RefObject<SVGSVGElement>
   return svgPoint.matrixTransform(svgRef.current!.getScreenCTM()!.inverse());
 };
 
-const transformPoint = (
-  point: Point,
-  scaleX: number,
-  scaleY: number,
-  translateX: number,
-  translateY: number
-): Point => ({
-  x: translateX + point.x * scaleX,
-  y: translateY + point.y * scaleY,
-});
-
-const transformPolygons = (
-  polygons: Polygon[],
-  scaleX: number,
-  scaleY: number,
-  translateX: number,
-  translateY: number
-): Polygon[] =>
-  polygons.map(polygon => ({
-    ...polygon,
-    points: stringifyPoints(
-      parsePoints(polygon.points).map(p => transformPoint(p, scaleX, scaleY, translateX, translateY))
-    )
-  }));
-
 const calculateBoundingBox = (polygonList: Polygon[]): BoundingBox => {
   const allPoints = polygonList.flatMap(polygon => parsePoints(polygon.points));
   const xs = allPoints.map(p => p.x);
@@ -201,14 +138,6 @@ const calculateBoundingBox = (polygonList: Polygon[]): BoundingBox => {
     height: Math.max(...ys) - Math.min(...ys),
   };
 };
-
-const convertToLocalCoordinates = (polygons: Polygon[], bbox: BoundingBox): Polygon[] =>
-  polygons.map(polygon => ({
-    ...polygon,
-    points: stringifyPoints(
-      parsePoints(polygon.points).map(p => ({ x: p.x - bbox.x, y: p.y - bbox.y }))
-    )
-  }));
 
 // ============================================================================
 // Component
@@ -232,16 +161,14 @@ const ResizableCanvas = () => {
   const commitSelectionTransformRef = useRef<() => void>(() => {});
   const [translation, setTranslation] = useState<Point>({ x: 0, y: 0 });
   const resizeStartAnchorRef = useRef<Point | null>(null);
+  const [guidelines, setGuidelines] = useState<Guideline[]>([]);
+  const [previewBBox, setPreviewBBox] = useState<BoundingBox | null>(null);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   // Calculate scale factors and bounding box
   const hasSelection = selectedIds.length > 0;
   const scaleX = hasSelection ? (flipped.x ? -1 : 1) * Math.abs(dimensions.width) / baseDimensions.width : 1;
   const scaleY = hasSelection ? (flipped.y ? -1 : 1) * Math.abs(dimensions.height) / baseDimensions.height : 1;
-  const selectionLabel = hasSelection ? selectedIds.join(', ') : 'None';
-  const widthLabel = hasSelection ? `${Math.abs(dimensions.width).toFixed(0)}px` : 'None';
-  const heightLabel = hasSelection ? `${Math.abs(dimensions.height).toFixed(0)}px` : 'None';
-  const scaleLabel = hasSelection ? `${Math.abs(scaleX).toFixed(2)}, ${Math.abs(scaleY).toFixed(2)}` : 'None';
-  const flippedLabel = hasSelection ? `X: ${flipped.x ? 'Yes' : 'No'}, Y: ${flipped.y ? 'Yes' : 'No'}` : 'None';
 
   const boundingBox = {
     x: fixedAnchor.x + translation.x + (flipped.x ? dimensions.width : 0),
@@ -261,6 +188,8 @@ const ResizableCanvas = () => {
     setSelectionRect(null);
     setSelectionOrigin(null);
     setTranslation({ x: 0, y: 0 });
+    setGuidelines([]);
+    setPreviewBBox(null);
   };
 
   const setSelectionFromIds = (ids: number[]) => {
@@ -277,6 +206,7 @@ const ResizableCanvas = () => {
     setFlipped({ x: false, y: false });
     setSelectionOrigin({ x: bbox.x, y: bbox.y });
     setTranslation({ x: 0, y: 0 });
+    setGuidelines([]);
   };
 
   const commitSelectionTransform = () => {
@@ -307,6 +237,7 @@ const ResizableCanvas = () => {
     setFlipped({ x: false, y: false });
     setSelectionOrigin(nextAnchor);
     setTranslation({ x: 0, y: 0 });
+    setGuidelines([]);
   };
 
   useEffect(() => {
@@ -389,14 +320,38 @@ const ResizableCanvas = () => {
   const handleMove = (e: MouseEvent) => {
     if (!isMoving || !moveStartRef.current) return;
     const point = clientToSVGCoords(e, svgRef);
-    const deltaX = point.x - moveStartRef.current.pointer.x;
-    const deltaY = point.y - moveStartRef.current.pointer.y;
+    let deltaX = point.x - moveStartRef.current.pointer.x;
+    let deltaY = point.y - moveStartRef.current.pointer.y;
+
+    // --- SNAPPING LOGIC START ---
+    const proposedBox = {
+      x: fixedAnchor.x + deltaX + (flipped.x ? dimensions.width : 0),
+      y: fixedAnchor.y + deltaY + (flipped.y ? dimensions.height : 0),
+      width: Math.abs(dimensions.width),
+      height: Math.abs(dimensions.height),
+    };
+
+    const snapResult = calculateSnap(
+      proposedBox,
+      polygons,
+      selectedIds,
+      CONSTANTS.SVG_SIZE,
+      CONSTANTS.SNAP_THRESHOLD
+    );
+    
+    setGuidelines(snapResult.guidelines);
+    deltaX += snapResult.translation.x;
+    deltaY += snapResult.translation.y;
+
+    // --- SNAPPING LOGIC END ---
+
     setTranslation({ x: deltaX, y: deltaY });
   };
 
   const handleMoveEnd = () => {
     setIsMoving(false);
     moveStartRef.current = null;
+    setGuidelines([]);
     commitSelectionTransformRef.current();
   };
 
@@ -436,6 +391,7 @@ const ResizableCanvas = () => {
     if (hasSelection) {
       // Clicking on empty space should start a new selection and clear existing
       setSelectedIds([]);
+      setGuidelines([]);
     }
 
     const point = clientToSVGCoords(e.nativeEvent, svgRef);
@@ -443,17 +399,41 @@ const ResizableCanvas = () => {
     setSelectionRect({ start: point, current: point });
   };
 
-  const handleSvgMouseMove = (e: React.MouseEvent) => {
-    if (!selectionRect) return;
-    const point = clientToSVGCoords(e.nativeEvent, svgRef);
-    setSelectionRect(prev => prev ? { ...prev, current: point } : prev);
-  };
-
   const rectsIntersect = (a: BoundingBox, b: BoundingBox) => {
     return a.x < b.x + b.width &&
            a.x + a.width > b.x &&
            a.y < b.y + b.height &&
            a.y + a.height > b.y;
+  };
+
+  const handleSvgMouseMove = (e: React.MouseEvent) => {
+    if (!selectionRect) return;
+    const point = clientToSVGCoords(e.nativeEvent, svgRef);
+    setSelectionRect(prev => prev ? { ...prev, current: point } : prev);
+
+    // Preview selection
+    const x1 = selectionRect.start.x;
+    const y1 = selectionRect.start.y;
+    const x2 = point.x;
+    const y2 = point.y;
+    const selBox: BoundingBox = {
+      x: Math.min(x1, x2),
+      y: Math.min(y1, y2),
+      width: Math.abs(x2 - x1),
+      height: Math.abs(y2 - y1),
+    };
+
+    const intersectingPolygons = polygons
+      .filter((polygon) => {
+         const bbox = calculateBoundingBox([polygon]);
+         return rectsIntersect(selBox, bbox);
+      });
+
+    if (intersectingPolygons.length > 0) {
+        setPreviewBBox(calculateBoundingBox(intersectingPolygons));
+    } else {
+        setPreviewBBox(null);
+    }
   };
 
   const handleSvgMouseUp = () => {
@@ -475,28 +455,42 @@ const ResizableCanvas = () => {
       .map(({ idx }) => idx);
 
     setSelectionRect(null);
+    setPreviewBBox(null);
     setSelectionFromIds(intersectingIds);
   };
 
   const handlePolygonMouseDown = (e: React.MouseEvent, index: number) => {
     e.stopPropagation();
+
     if (hasSelection && selectedIds.includes(index)) {
+      // Already selected, just start moving
       handleMoveStart(e);
       return;
     }
-    setSelectionFromIds([index]);
+
+    // New selection - select and immediately start moving
+    const selectedPolygons = [polygons[index]];
+    const bbox = calculateBoundingBox(selectedPolygons);
+    const newAnchor = { x: bbox.x, y: bbox.y };
+
+    // Set selection state
+    setSelectedIds([index]);
+    setFixedAnchor(newAnchor);
+    setDimensions({ width: bbox.width, height: bbox.height });
+    setBaseDimensions({ width: bbox.width, height: bbox.height });
+    setFlipped({ x: false, y: false });
+    setSelectionOrigin(newAnchor);
+    setTranslation({ x: 0, y: 0 });
+    setGuidelines([]);
+
+    // Immediately start move operation with the new anchor
+    const point = clientToSVGCoords(e.nativeEvent, svgRef);
+    moveStartRef.current = { pointer: point, anchor: newAnchor };
+    setIsMoving(true);
   };
 
   return (
     <div className="flex flex-col items-center p-8">
-      <div className="mb-4">
-        <p className="text-lg font-semibold">Click to select, drag a marquee to multi-select, drag inside box to move, or drag any handle to resize/flip</p>
-        <p>Selection: {selectionLabel}</p>
-        <p>Width/Height: {widthLabel}, {heightLabel}</p>
-        <p>Scale X/Y: {scaleLabel}</p>
-        <p>Flipped: {flippedLabel}</p>
-      </div>
-
       <svg
         ref={svgRef}
         width={CONSTANTS.SVG_SIZE}
@@ -530,14 +524,24 @@ const ResizableCanvas = () => {
                   key={index}
                   points={points}
                   fill={polygon.fill}
-                  stroke={polygon.stroke}
-                  strokeWidth={polygon.strokeWidth}
+                  stroke={isSelected ? polygon.stroke : (hoveredId === index ? "blue" : polygon.stroke)}
+                  strokeWidth={isSelected ? polygon.strokeWidth : (hoveredId === index ? 2 : polygon.strokeWidth)}
+                  onMouseEnter={() => !isSelected && setHoveredId(index)}
+                  onMouseLeave={() => setHoveredId(null)}
                   onMouseDown={(e) => handlePolygonMouseDown(e, index)}
                 />
               );
             })}
 
             <rect
+              data-testid="selection-bounding-box"
+              data-selection-ids={selectedIds.join(',')}
+              data-flipped-x={flipped.x}
+              data-flipped-y={flipped.y}
+              data-width={Math.abs(dimensions.width)}
+              data-height={Math.abs(dimensions.height)}
+              data-scale-x={Math.abs(scaleX)}
+              data-scale-y={Math.abs(scaleY)}
               x={boundingBox.x}
               y={boundingBox.y}
               width={boundingBox.width}
@@ -545,25 +549,73 @@ const ResizableCanvas = () => {
               fill="transparent"
               stroke="#3b82f6"
               strokeWidth="1"
-              strokeDasharray="4"
               cursor="move"
               onMouseDown={handleMoveStart}
             />
 
+            {/* Invisible Edge Resize Handles */}
+            {/* Top */}
+            <rect
+                data-testid="resize-handle-top"
+                x={boundingBox.x}
+                y={boundingBox.y - 5}
+                width={boundingBox.width}
+                height={10}
+                fill="transparent"
+                cursor={HANDLE_CONFIG['top'].cursor}
+                onMouseDown={(e) => handleResizeStart(e, 'top')}
+            />
+            {/* Bottom */}
+            <rect
+                data-testid="resize-handle-bottom"
+                x={boundingBox.x}
+                y={boundingBox.y + boundingBox.height - 5}
+                width={boundingBox.width}
+                height={10}
+                fill="transparent"
+                cursor={HANDLE_CONFIG['bottom'].cursor}
+                onMouseDown={(e) => handleResizeStart(e, 'bottom')}
+            />
+             {/* Left */}
+             <rect
+                data-testid="resize-handle-left"
+                x={boundingBox.x - 5}
+                y={boundingBox.y}
+                width={10}
+                height={boundingBox.height}
+                fill="transparent"
+                cursor={HANDLE_CONFIG['left'].cursor}
+                onMouseDown={(e) => handleResizeStart(e, 'left')}
+            />
+            {/* Right */}
+            <rect
+                data-testid="resize-handle-right"
+                x={boundingBox.x + boundingBox.width - 5}
+                y={boundingBox.y}
+                width={10}
+                height={boundingBox.height}
+                fill="transparent"
+                cursor={HANDLE_CONFIG['right'].cursor}
+                onMouseDown={(e) => handleResizeStart(e, 'right')}
+            />
+
             {(Object.entries(handlePositions) as [HandleName, Point][]).map(([handle, pos]) => {
               const config = HANDLE_CONFIG[handle];
+              if (!config.isCorner) return null;
               const effectiveHandle = getEffectiveHandle(handle, flipped);
               const isFixedAnchor = effectiveHandle === 'top-left';
+              const size = config.isCorner ? CONSTANTS.HANDLE_SIZE.corner : CONSTANTS.HANDLE_SIZE.edge;
               return (
-                <circle
+                <rect
                   key={handle}
                   data-testid={`resize-handle-${handle}`}
                   data-is-fixed-anchor={isFixedAnchor}
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={config.isCorner ? CONSTANTS.HANDLE_SIZE.corner : CONSTANTS.HANDLE_SIZE.edge}
-                  fill="#3b82f6"
-                  stroke="white"
+                  x={pos.x - size / 2}
+                  y={pos.y - size / 2}
+                  width={size}
+                  height={size}
+                  fill="white"
+                  stroke="#3b82f6"
                   strokeWidth="2"
                   cursor={config.cursor}
                   onMouseDown={(e) => handleResizeStart(e, handle)}
@@ -577,15 +629,46 @@ const ResizableCanvas = () => {
               key={index}
               points={polygon.points}
               fill={polygon.fill}
-              stroke={polygon.stroke}
-              strokeWidth={polygon.strokeWidth}
+              stroke={hoveredId === index ? "blue" : polygon.stroke}
+              strokeWidth={hoveredId === index ? 2 : polygon.strokeWidth}
+              onMouseEnter={() => setHoveredId(index)}
+              onMouseLeave={() => setHoveredId(null)}
               onMouseDown={(e) => handlePolygonMouseDown(e, index)}
             />
           ))
         )}
 
+        {/* Guidelines Rendering */}
+        {guidelines.map((guide, i) => (
+          <line
+            key={i}
+            x1={guide.type === 'vertical' ? guide.pos : guide.start}
+            y1={guide.type === 'vertical' ? guide.start : guide.pos}
+            x2={guide.type === 'vertical' ? guide.pos : guide.end}
+            y2={guide.type === 'vertical' ? guide.end : guide.pos}
+            stroke="red"
+            strokeWidth="1"
+            pointerEvents="none"
+          />
+        ))}
+
+        {previewBBox && (
+            <rect
+                data-testid="preview-bounding-box"
+                x={previewBBox.x}
+                y={previewBBox.y}
+                width={previewBBox.width}
+                height={previewBBox.height}
+                fill="transparent"
+                stroke="#3b82f6"
+                strokeWidth="1"
+                pointerEvents="none"
+            />
+        )}
+
         {selectionRect && (
           <rect
+            data-testid="marquee-selection-rect"
             x={Math.min(selectionRect.start.x, selectionRect.current.x)}
             y={Math.min(selectionRect.start.y, selectionRect.current.y)}
             width={Math.abs(selectionRect.current.x - selectionRect.start.x)}
@@ -593,17 +676,18 @@ const ResizableCanvas = () => {
             fill="rgba(59, 130, 246, 0.1)"
             stroke="#3b82f6"
             strokeWidth="1"
-            strokeDasharray="4"
           />
         )}
       </svg>
-      <div className="mt-4 flex gap-2">
-        <button
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          onClick={resetToInitial}
-        >
-          Reset
-        </button>
+      <div className="mt-4">
+        <div className="flex gap-2">
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={resetToInitial}
+          >
+            Reset
+          </button>
+        </div>
       </div>
     </div>
   );

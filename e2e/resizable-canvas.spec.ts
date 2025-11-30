@@ -33,7 +33,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
       await assertSelectionState(page, [0, 1, 2]);
 
       // Verify bounding box
-      const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
+      const selectionBox = svg.locator('[data-testid="selection-bounding-box"]');
       await assertBoundingBox(selectionBox, INITIAL_BOUNDING_BOX);
     });
 
@@ -58,6 +58,48 @@ test.describe('ResizableCanvas E2E Tests', () => {
       // Verify cleared
       await assertNoSelection(page);
     });
+
+    test('TC-17: Verify preview box appears during marquee selection', async ({ page }) => {
+      const svg = page.locator('svg');
+      const offset = await getSVGOffset(page);
+
+      // Start drawing marquee
+      await page.mouse.move(offset.x + 210, offset.y + 210);
+      await page.mouse.down();
+
+      // Drag to cover Polygon 0
+      await page.mouse.move(offset.x + 270, offset.y + 260, { steps: 5 });
+
+      // Check for both marquee rect and preview box
+      await expect(svg.locator('[data-testid="marquee-selection-rect"]')).toHaveCount(1);
+      await expect(svg.locator('[data-testid="preview-bounding-box"]')).toHaveCount(1);
+
+      await page.mouse.up();
+    });
+
+    test('TC-18: Polygon border changes on hover', async ({ page }) => {
+      const svg = page.locator('svg');
+      const offset = await getSVGOffset(page);
+      const polygon0 = svg.locator('polygon').nth(0);
+
+      // Initially, polygon should have black stroke and strokeWidth 1
+      await expect(polygon0).toHaveAttribute('stroke', 'black');
+      await expect(polygon0).toHaveAttribute('stroke-width', '1');
+
+      // Hover over polygon 0 (red triangle at ~245, 235)
+      await page.mouse.move(offset.x + 245, offset.y + 235);
+
+      // Verify stroke is blue and strokeWidth is 2
+      await expect(polygon0).toHaveAttribute('stroke', 'blue');
+      await expect(polygon0).toHaveAttribute('stroke-width', '2');
+
+      // Move mouse away to empty space
+      await page.mouse.move(offset.x + 50, offset.y + 50);
+
+      // Verify stroke returns to black and strokeWidth returns to 1
+      await expect(polygon0).toHaveAttribute('stroke', 'black');
+      await expect(polygon0).toHaveAttribute('stroke-width', '1');
+    });
   });
 
   test.describe('Translation Tests', () => {
@@ -68,7 +110,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
       await drawSelectionRectangle(page, 220, 210, 310, 310);
 
       // Get selection box center
-      const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
+      const selectionBox = svg.locator('[data-testid="selection-bounding-box"]');
       const box = await selectionBox.boundingBox();
       if (!box) throw new Error('Selection box not found');
 
@@ -94,7 +136,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
       const svg = page.locator('svg');
       await drawSelectionRectangle(page, 220, 210, 310, 310);
 
-      const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
+      const selectionBox = svg.locator('[data-testid="selection-bounding-box"]');
 
       // First translation
       let box = await selectionBox.boundingBox();
@@ -119,7 +161,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
   test.describe('Complete Workflow', () => {
     test('TC-14: Full user workflow - select, translate, resize with inversions', async ({ page }) => {
       const svg = page.locator('svg');
-      const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
+      const selectionBox = svg.locator('[data-testid="selection-bounding-box"]');
 
       // Step 1: Select all 3 polygons
       await drawSelectionRectangle(page, 220, 210, 310, 310);
@@ -293,7 +335,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
       // Select all
       await drawSelectionRectangle(page, 220, 210, 310, 310);
 
-      const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
+      const selectionBox = svg.locator('[data-testid="selection-bounding-box"]');
       const box = await selectionBox.boundingBox();
       if (!box) throw new Error('Box not found');
 
@@ -310,7 +352,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
 
       // Make changes
       await drawSelectionRectangle(page, 220, 210, 310, 310);
-      const selectionBox = svg.locator('rect[stroke="#3b82f6"][stroke-dasharray="4"]');
+      const selectionBox = svg.locator('[data-testid="selection-bounding-box"]');
       const box = await selectionBox.boundingBox();
       if (!box) throw new Error('Box not found');
       await dragFromTo(page, box.x + 35, box.y + 40, box.x + 85, box.y + 70);

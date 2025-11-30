@@ -25,5 +25,7 @@ dist-ssr
 
 # Playwright
 test-results/
+test-results-snap/
+snap-test-videos/
 playwright-report/
 playwright/.cache/
