@@ -167,6 +167,25 @@ const ResizableCanvas = () => {
   const [guidelines, setGuidelines] = useState<Guideline[]>([]);
   const [previewBBox, setPreviewBBox] = useState<BoundingBox | null>(null);
 
+  // Chat Tab State
+  const [activeTab, setActiveTab] = useState<'design' | 'chat'>('design');
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
+    { role: 'assistant', content: "Hello! I'm your design assistant. How can I help you today?" },
+  ]);
+  const [chatInput, setChatInput] = useState('');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setActiveTab((prev) => (prev === 'design' ? 'chat' : 'design'));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Calculate scale factors and bounding box
   const hasSelection = selectedIds.length > 0;
   const scaleX = hasSelection ? (flipped.x ? -1 : 1) * Math.abs(dimensions.width) / baseDimensions.width : 1;
@@ -550,8 +569,12 @@ const ResizableCanvas = () => {
     <div className="flex h-screen relative">
       {/* Layer Sidebar */}
       <div className="w-64 bg-gray-100 border-r border-gray-300 overflow-y-auto">
-        <div className="p-4">
-          <h2 className="text-lg font-semibold mb-4">Layers</h2>
+        <div className="flex items-end px-4 py-3 border-b border-gray-300 bg-gray-100">
+          <span className="inline-flex items-center h-auto px-2 py-1 text-sm font-medium text-gray-900">
+            Layers
+          </span>
+        </div>
+        <div className="p-4 pt-3">
           <div className="space-y-2">
             {polygons.map((polygon, index) => {
               const isSelected = selectedIds.includes(index);
@@ -800,165 +823,235 @@ const ResizableCanvas = () => {
       </div>
 
       {/* Properties Panel - Absolutely Positioned Overlay */}
-      <div className="absolute top-0 right-0 w-80 h-full bg-gray-100 border-l border-gray-300 shadow-lg overflow-y-auto z-10">
-        <div className="p-4">
-          <h2 className="text-lg font-semibold mb-4">Design</h2>
-          {hasSelection && selectedIds.length === 1 && (
-            <div className="space-y-4">
-            {/* Fill Color */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fill
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={polygons[selectedIds[0]].fill}
-                  onChange={(e) => {
-                    const newPolygons = [...polygons];
-                    newPolygons[selectedIds[0]] = {
-                      ...newPolygons[selectedIds[0]],
-                      fill: e.target.value,
-                    };
-                    setPolygons(newPolygons);
-                  }}
-                  className="w-10 h-10 rounded border border-gray-300 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={polygons[selectedIds[0]].fill}
-                  onChange={(e) => {
-                    const newPolygons = [...polygons];
-                    newPolygons[selectedIds[0]] = {
-                      ...newPolygons[selectedIds[0]],
-                      fill: e.target.value,
-                    };
-                    setPolygons(newPolygons);
-                  }}
-                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
-                />
+      <div className="absolute top-0 right-0 w-80 h-full bg-gray-100 border-l border-gray-300 shadow-lg overflow-y-auto z-10 flex flex-col">
+        {/* Tab Header */}
+        <div className="flex items-end justify-center gap-6 px-4 py-3 border-b border-gray-300 bg-gray-100 shrink-0">
+          <button
+            className={`inline-flex items-center h-auto px-2 py-1 text-sm font-medium text-gray-900 bg-transparent hover:bg-gray-200 border-0 focus:outline-none rounded-md ${
+              activeTab === 'design' ? 'underline underline-offset-8 decoration-2' : ''
+            }`}
+            onClick={() => setActiveTab('design')}
+          >
+            Design
+          </button>
+          <button
+            className={`inline-flex items-center h-auto px-2 py-1 text-sm font-medium text-gray-900 bg-transparent hover:bg-gray-200 border-0 focus:outline-none rounded-md ${
+              activeTab === 'chat' ? 'underline underline-offset-8 decoration-2' : ''
+            }`}
+            onClick={() => setActiveTab('chat')}
+          >
+            Chat <span className="ml-1 text-xs text-gray-400 font-normal">⌘K</span>
+          </button>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {activeTab === 'design' ? (
+            <>
+              {hasSelection && selectedIds.length === 1 ? (
+                <div className="space-y-4">
+                  {/* Fill Color */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fill</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={polygons[selectedIds[0]].fill}
+                        onChange={(e) => {
+                          const newPolygons = [...polygons];
+                          newPolygons[selectedIds[0]] = {
+                            ...newPolygons[selectedIds[0]],
+                            fill: e.target.value,
+                          };
+                          setPolygons(newPolygons);
+                        }}
+                        className="w-10 h-10 rounded border border-gray-300 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={polygons[selectedIds[0]].fill}
+                        onChange={(e) => {
+                          const newPolygons = [...polygons];
+                          newPolygons[selectedIds[0]] = {
+                            ...newPolygons[selectedIds[0]],
+                            fill: e.target.value,
+                          };
+                          setPolygons(newPolygons);
+                        }}
+                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stroke Color */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Stroke</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={polygons[selectedIds[0]].stroke}
+                        onChange={(e) => {
+                          const newPolygons = [...polygons];
+                          newPolygons[selectedIds[0]] = {
+                            ...newPolygons[selectedIds[0]],
+                            stroke: e.target.value,
+                          };
+                          setPolygons(newPolygons);
+                        }}
+                        className="w-10 h-10 rounded border border-gray-300 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={polygons[selectedIds[0]].stroke}
+                        onChange={(e) => {
+                          const newPolygons = [...polygons];
+                          newPolygons[selectedIds[0]] = {
+                            ...newPolygons[selectedIds[0]],
+                            stroke: e.target.value,
+                          };
+                          setPolygons(newPolygons);
+                        }}
+                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Position and Dimensions */}
+                  <div className="pt-2 border-t border-gray-300">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Position & Size</h3>
+
+                    {/* X Position */}
+                    <div className="mb-2">
+                      <label className="block text-xs text-gray-600 mb-1">X</label>
+                      <input
+                        type="number"
+                        value={Math.round(boundingBox.x)}
+                        onChange={(e) => handlePositionChange('x', Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            handlePositionChange('x', boundingBox.x + 1);
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            handlePositionChange('x', boundingBox.x - 1);
+                          }
+                        }}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                      />
+                    </div>
+
+                    {/* Y Position */}
+                    <div className="mb-2">
+                      <label className="block text-xs text-gray-600 mb-1">Y</label>
+                      <input
+                        type="number"
+                        value={Math.round(boundingBox.y)}
+                        onChange={(e) => handlePositionChange('y', Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            handlePositionChange('y', boundingBox.y - 1);
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            handlePositionChange('y', boundingBox.y + 1);
+                          }
+                        }}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                      />
+                    </div>
+
+                    {/* Width */}
+                    <div className="mb-2">
+                      <label className="block text-xs text-gray-600 mb-1">Width</label>
+                      <input
+                        type="number"
+                        value={Math.round(boundingBox.width)}
+                        onChange={(e) => handleDimensionChange('width', Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            handleDimensionChange('width', boundingBox.width + 1);
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            handleDimensionChange('width', boundingBox.width - 1);
+                          }
+                        }}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                      />
+                    </div>
+
+                    {/* Height */}
+                    <div className="mb-2">
+                      <label className="block text-xs text-gray-600 mb-1">Height</label>
+                      <input
+                        type="number"
+                        value={Math.round(boundingBox.height)}
+                        onChange={(e) => handleDimensionChange('height', Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            handleDimensionChange('height', boundingBox.height + 1);
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            handleDimensionChange('height', boundingBox.height - 1);
+                          }
+                        }}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                 <div className="text-center text-gray-500 mt-10">
+                   <p>Select a shape to edit its properties.</p>
+                 </div>
+              )}
+            </>
+          ) : (
+            <div className="flex flex-col h-full">
+              <div className="flex-1 space-y-4 mb-4 overflow-y-auto">
+                {chatMessages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-lg text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-blue-50 text-blue-900'
+                        : 'bg-white border border-gray-200 text-gray-800'
+                    }`}
+                  >
+                    <div className="text-xs text-gray-500 mb-1 uppercase tracking-wider font-semibold" style={{ fontSize: '0.65rem' }}>
+                      {msg.role}
+                    </div>
+                    {msg.content}
+                  </div>
+                ))}
               </div>
-            </div>
-
-            {/* Stroke Color */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Stroke
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={polygons[selectedIds[0]].stroke}
-                  onChange={(e) => {
-                    const newPolygons = [...polygons];
-                    newPolygons[selectedIds[0]] = {
-                      ...newPolygons[selectedIds[0]],
-                      stroke: e.target.value,
-                    };
-                    setPolygons(newPolygons);
-                  }}
-                  className="w-10 h-10 rounded border border-gray-300 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={polygons[selectedIds[0]].stroke}
-                  onChange={(e) => {
-                    const newPolygons = [...polygons];
-                    newPolygons[selectedIds[0]] = {
-                      ...newPolygons[selectedIds[0]],
-                      stroke: e.target.value,
-                    };
-                    setPolygons(newPolygons);
-                  }}
-                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
-                />
-              </div>
-            </div>
-
-            {/* Position and Dimensions */}
-            <div className="pt-2 border-t border-gray-300">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Position & Size</h3>
-
-              {/* X Position */}
-              <div className="mb-2">
-                <label className="block text-xs text-gray-600 mb-1">X</label>
-                <input
-                  type="number"
-                  value={Math.round(boundingBox.x)}
-                  onChange={(e) => handlePositionChange('x', Number(e.target.value))}
+              <div className="mt-auto pt-4 border-t border-gray-200">
+                <textarea
+                  className="w-full p-2 border border-gray-300 rounded text-sm bg-gray-100 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  rows={3}
+                  placeholder="Ask a question..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp') {
+                    if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      handlePositionChange('x', boundingBox.x + 1);
-                    } else if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      handlePositionChange('x', boundingBox.x - 1);
+                      if (!chatInput.trim()) return;
+                      const newMsg = { role: 'user' as const, content: chatInput };
+                      setChatMessages((prev) => [...prev, newMsg]);
+                      setChatInput('');
+                      // Simulate response
+                      setTimeout(() => {
+                        setChatMessages((prev) => [
+                          ...prev,
+                          { role: 'assistant', content: "I'm a mock AI. I can't actually design yet!" },
+                        ]);
+                      }, 1000);
                     }
                   }}
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
                 />
+                <div className="text-xs text-gray-400 mt-1 text-right">Press Enter to send</div>
               </div>
-
-              {/* Y Position */}
-              <div className="mb-2">
-                <label className="block text-xs text-gray-600 mb-1">Y</label>
-                <input
-                  type="number"
-                  value={Math.round(boundingBox.y)}
-                  onChange={(e) => handlePositionChange('y', Number(e.target.value))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      handlePositionChange('y', boundingBox.y - 1);
-                    } else if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      handlePositionChange('y', boundingBox.y + 1);
-                    }
-                  }}
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
-                />
-              </div>
-
-              {/* Width */}
-              <div className="mb-2">
-                <label className="block text-xs text-gray-600 mb-1">Width</label>
-                <input
-                  type="number"
-                  value={Math.round(boundingBox.width)}
-                  onChange={(e) => handleDimensionChange('width', Number(e.target.value))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      handleDimensionChange('width', boundingBox.width + 1);
-                    } else if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      handleDimensionChange('width', boundingBox.width - 1);
-                    }
-                  }}
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
-                />
-              </div>
-
-              {/* Height */}
-              <div className="mb-2">
-                <label className="block text-xs text-gray-600 mb-1">Height</label>
-                <input
-                  type="number"
-                  value={Math.round(boundingBox.height)}
-                  onChange={(e) => handleDimensionChange('height', Number(e.target.value))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      handleDimensionChange('height', boundingBox.height + 1);
-                    } else if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      handleDimensionChange('height', boundingBox.height - 1);
-                    }
-                  }}
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
-                />
-              </div>
-            </div>
             </div>
           )}
         </div>
