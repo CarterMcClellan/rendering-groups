@@ -4,14 +4,14 @@ export async function assertSelectionState(
   page: Page,
   expectedIds: number[]
 ): Promise<void> {
+  const debugState = page.locator('[data-testid="debug-state"]');
+  const actualIdsAttr = await debugState.getAttribute('data-selection-ids');
+
   if (expectedIds.length === 0) {
-    await expect(page.locator('[data-testid="selection-bounding-box"]')).toHaveCount(0);
+    expect(actualIdsAttr, 'Expected no selection (empty string)').toBe('');
   } else {
-    const selectionBox = page.locator('[data-testid="selection-bounding-box"]');
-    await expect(selectionBox).toHaveCount(1);
-    const idsAttr = await selectionBox.getAttribute('data-selection-ids');
-    const actualIds = idsAttr ? idsAttr.split(',').map(Number) : [];
-    expect(actualIds).toEqual(expectedIds);
+    const expectedIdsString = expectedIds.join(',');
+    expect(actualIdsAttr, `Expected selection IDs: ${expectedIdsString}`).toBe(expectedIdsString);
   }
 }
 
@@ -20,12 +20,15 @@ export async function assertFlipState(
   expectedX: boolean,
   expectedY: boolean
 ): Promise<void> {
-  const selectionBox = page.locator('[data-testid="selection-bounding-box"]');
-  const flippedX = await selectionBox.getAttribute('data-flipped-x');
-  const flippedY = await selectionBox.getAttribute('data-flipped-y');
+  const debugState = page.locator('[data-testid="debug-state"]');
+  const actualFlipX = await debugState.getAttribute('data-flip-x');
+  const actualFlipY = await debugState.getAttribute('data-flip-y');
 
-  expect(flippedX === 'true', `Expected flip.x to be ${expectedX} but got ${flippedX}`).toBe(expectedX);
-  expect(flippedY === 'true', `Expected flip.y to be ${expectedY} but got ${flippedY}`).toBe(expectedY);
+  const flipXBool = actualFlipX === 'true';
+  const flipYBool = actualFlipY === 'true';
+
+  expect(flipXBool, `Expected flip.x to be ${expectedX} but got ${actualFlipX}`).toBe(expectedX);
+  expect(flipYBool, `Expected flip.y to be ${expectedY} but got ${actualFlipY}`).toBe(expectedY);
 }
 
 export async function assertBoundingBox(
