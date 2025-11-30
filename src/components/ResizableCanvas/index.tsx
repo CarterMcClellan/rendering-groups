@@ -622,7 +622,7 @@ const ResizableCanvas = () => {
         ref={svgRef}
         width={CONSTANTS.CANVAS_WIDTH}
         height={CONSTANTS.CANVAS_HEIGHT}
-        className="border border-gray-300 bg-gray-50"
+        className="border border-gray-300 bg-gray-50 canvas-dots"
         onMouseDown={(e) => {
           // if selection exists but click starts on handle or inside rect, handlers already attached
           // selection rectangle should start only when not caught elsewhere
