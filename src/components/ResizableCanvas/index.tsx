@@ -17,7 +17,9 @@ import {
 // ============================================================================
 
 const CONSTANTS = {
-  SVG_SIZE: 500,
+  // SVG_SIZE: 500,
+  CANVAS_WIDTH: 800,
+  CANVAS_HEIGHT: 600,
   MIN_SIZE: 10,
   HANDLE_SIZE: { edge: 6, corner: 8 },
   ANCHOR_RADIUS: 5,
@@ -337,7 +339,8 @@ const ResizableCanvas = () => {
       proposedBox,
       polygons,
       selectedIds,
-      CONSTANTS.SVG_SIZE,
+      CONSTANTS.CANVAS_WIDTH,
+      CONSTANTS.CANVAS_HEIGHT,
       CONSTANTS.SNAP_THRESHOLD
     );
     
@@ -485,26 +488,117 @@ const ResizableCanvas = () => {
     setIsMoving(true);
   };
 
+  // Helper function to update position
+  const handlePositionChange = (axis: 'x' | 'y', value: number) => {
+    const currentX = boundingBox.x;
+    const currentY = boundingBox.y;
+    const deltaX = axis === 'x' ? value - currentX : 0;
+    const deltaY = axis === 'y' ? value - currentY : 0;
+
+    const updatedPolygons = polygons.map((polygon, idx) => {
+      if (!selectedIds.includes(idx)) return polygon;
+      const points = parsePoints(polygon.points).map(p => ({
+        x: p.x + deltaX,
+        y: p.y + deltaY,
+      }));
+      return { ...polygon, points: stringifyPoints(points) };
+    });
+
+    setPolygons(updatedPolygons);
+    const selectedPolygons = updatedPolygons.filter((_p, idx) => selectedIds.includes(idx));
+    const bbox = calculateBoundingBox(selectedPolygons);
+    setFixedAnchor({ x: bbox.x, y: bbox.y });
+    setDimensions({ width: bbox.width, height: bbox.height });
+    setBaseDimensions({ width: bbox.width, height: bbox.height });
+    setSelectionOrigin({ x: bbox.x, y: bbox.y });
+  };
+
+  // Helper function to update dimensions
+  const handleDimensionChange = (dimension: 'width' | 'height', value: number) => {
+    if (value <= 0) return; // Prevent invalid dimensions
+
+    const currentWidth = boundingBox.width;
+    const currentHeight = boundingBox.height;
+    const scaleX = dimension === 'width' ? value / currentWidth : 1;
+    const scaleY = dimension === 'height' ? value / currentHeight : 1;
+
+    const origin = { x: boundingBox.x, y: boundingBox.y };
+
+    const updatedPolygons = polygons.map((polygon, idx) => {
+      if (!selectedIds.includes(idx)) return polygon;
+      const points = parsePoints(polygon.points).map(p => {
+        const localX = p.x - origin.x;
+        const localY = p.y - origin.y;
+        return {
+          x: origin.x + localX * scaleX,
+          y: origin.y + localY * scaleY,
+        };
+      });
+      return { ...polygon, points: stringifyPoints(points) };
+    });
+
+    setPolygons(updatedPolygons);
+    const selectedPolygons = updatedPolygons.filter((_p, idx) => selectedIds.includes(idx));
+    const bbox = calculateBoundingBox(selectedPolygons);
+    setFixedAnchor({ x: bbox.x, y: bbox.y });
+    setDimensions({ width: bbox.width, height: bbox.height });
+    setBaseDimensions({ width: bbox.width, height: bbox.height });
+    setSelectionOrigin({ x: bbox.x, y: bbox.y });
+  };
+
   return (
-    <div className="flex flex-col items-center p-8">
-      {/* Hidden container for test data attributes */}
-      <div
-        data-testid="debug-state"
-        data-selection-ids={hasSelection ? selectedIds.join(',') : ''}
-        data-width={hasSelection ? Math.abs(dimensions.width).toString() : ''}
-        data-height={hasSelection ? Math.abs(dimensions.height).toString() : ''}
-        data-scale-x={hasSelection ? Math.abs(scaleX).toString() : ''}
-        data-scale-y={hasSelection ? Math.abs(scaleY).toString() : ''}
-        data-flip-x={hasSelection ? flipped.x.toString() : ''}
-        data-flip-y={hasSelection ? flipped.y.toString() : ''}
-        style={{ display: 'none' }}
-        aria-hidden="true"
-      />
+    <div className="flex h-screen relative">
+      {/* Layer Sidebar */}
+      <div className="w-64 bg-gray-100 border-r border-gray-300 overflow-y-auto">
+        <div className="p-4">
+          <h2 className="text-lg font-semibold mb-4">Layers</h2>
+          <div className="space-y-2">
+            {polygons.map((polygon, index) => {
+              const isSelected = selectedIds.includes(index);
+              return (
+                <div
+                  key={index}
+                  onClick={() => setSelectionFromIds([index])}
+                  className={`p-3 rounded cursor-pointer border ${
+                    isSelected
+                      ? 'bg-blue-100 border-blue-500'
+                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded border border-gray-300"
+                      style={{ backgroundColor: polygon.fill }}
+                    />
+                    <span className="text-sm font-medium">Shape {index + 1}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Canvas Area */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8" style={{ marginRight: '320px' }}>
+        {/* Hidden container for test data attributes */}
+        <div
+          data-testid="debug-state"
+          data-selection-ids={hasSelection ? selectedIds.join(',') : ''}
+          data-width={hasSelection ? Math.abs(dimensions.width).toString() : ''}
+          data-height={hasSelection ? Math.abs(dimensions.height).toString() : ''}
+          data-scale-x={hasSelection ? Math.abs(scaleX).toString() : ''}
+          data-scale-y={hasSelection ? Math.abs(scaleY).toString() : ''}
+          data-flip-x={hasSelection ? flipped.x.toString() : ''}
+          data-flip-y={hasSelection ? flipped.y.toString() : ''}
+          style={{ display: 'none' }}
+          aria-hidden="true"
+        />
 
       <svg
         ref={svgRef}
-        width={CONSTANTS.SVG_SIZE}
-        height={CONSTANTS.SVG_SIZE}
+        width={CONSTANTS.CANVAS_WIDTH}
+        height={CONSTANTS.CANVAS_HEIGHT}
         className="border border-gray-300 bg-gray-50"
         onMouseDown={(e) => {
           // if selection exists but click starts on handle or inside rect, handlers already attached
@@ -693,14 +787,180 @@ const ResizableCanvas = () => {
           />
         )}
       </svg>
-      <div className="mt-4">
-        <div className="flex gap-2">
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            onClick={resetToInitial}
-          >
-            Reset
-          </button>
+        <div className="mt-4">
+          <div className="flex gap-2">
+            <button
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              onClick={resetToInitial}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Properties Panel - Absolutely Positioned Overlay */}
+      <div className="absolute top-0 right-0 w-80 h-full bg-gray-100 border-l border-gray-300 shadow-lg overflow-y-auto z-10">
+        <div className="p-4">
+          <h2 className="text-lg font-semibold mb-4">Design</h2>
+          {hasSelection && selectedIds.length === 1 && (
+            <div className="space-y-4">
+            {/* Fill Color */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fill
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={polygons[selectedIds[0]].fill}
+                  onChange={(e) => {
+                    const newPolygons = [...polygons];
+                    newPolygons[selectedIds[0]] = {
+                      ...newPolygons[selectedIds[0]],
+                      fill: e.target.value,
+                    };
+                    setPolygons(newPolygons);
+                  }}
+                  className="w-10 h-10 rounded border border-gray-300 cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={polygons[selectedIds[0]].fill}
+                  onChange={(e) => {
+                    const newPolygons = [...polygons];
+                    newPolygons[selectedIds[0]] = {
+                      ...newPolygons[selectedIds[0]],
+                      fill: e.target.value,
+                    };
+                    setPolygons(newPolygons);
+                  }}
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                />
+              </div>
+            </div>
+
+            {/* Stroke Color */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Stroke
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={polygons[selectedIds[0]].stroke}
+                  onChange={(e) => {
+                    const newPolygons = [...polygons];
+                    newPolygons[selectedIds[0]] = {
+                      ...newPolygons[selectedIds[0]],
+                      stroke: e.target.value,
+                    };
+                    setPolygons(newPolygons);
+                  }}
+                  className="w-10 h-10 rounded border border-gray-300 cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={polygons[selectedIds[0]].stroke}
+                  onChange={(e) => {
+                    const newPolygons = [...polygons];
+                    newPolygons[selectedIds[0]] = {
+                      ...newPolygons[selectedIds[0]],
+                      stroke: e.target.value,
+                    };
+                    setPolygons(newPolygons);
+                  }}
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                />
+              </div>
+            </div>
+
+            {/* Position and Dimensions */}
+            <div className="pt-2 border-t border-gray-300">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Position & Size</h3>
+
+              {/* X Position */}
+              <div className="mb-2">
+                <label className="block text-xs text-gray-600 mb-1">X</label>
+                <input
+                  type="number"
+                  value={Math.round(boundingBox.x)}
+                  onChange={(e) => handlePositionChange('x', Number(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      handlePositionChange('x', boundingBox.x + 1);
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      handlePositionChange('x', boundingBox.x - 1);
+                    }
+                  }}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                />
+              </div>
+
+              {/* Y Position */}
+              <div className="mb-2">
+                <label className="block text-xs text-gray-600 mb-1">Y</label>
+                <input
+                  type="number"
+                  value={Math.round(boundingBox.y)}
+                  onChange={(e) => handlePositionChange('y', Number(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      handlePositionChange('y', boundingBox.y - 1);
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      handlePositionChange('y', boundingBox.y + 1);
+                    }
+                  }}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                />
+              </div>
+
+              {/* Width */}
+              <div className="mb-2">
+                <label className="block text-xs text-gray-600 mb-1">Width</label>
+                <input
+                  type="number"
+                  value={Math.round(boundingBox.width)}
+                  onChange={(e) => handleDimensionChange('width', Number(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      handleDimensionChange('width', boundingBox.width + 1);
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      handleDimensionChange('width', boundingBox.width - 1);
+                    }
+                  }}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                />
+              </div>
+
+              {/* Height */}
+              <div className="mb-2">
+                <label className="block text-xs text-gray-600 mb-1">Height</label>
+                <input
+                  type="number"
+                  value={Math.round(boundingBox.height)}
+                  onChange={(e) => handleDimensionChange('height', Number(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      handleDimensionChange('height', boundingBox.height + 1);
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      handleDimensionChange('height', boundingBox.height - 1);
+                    }
+                  }}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                />
+              </div>
+            </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

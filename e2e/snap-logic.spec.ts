@@ -7,14 +7,15 @@ const mockPolygons: Polygon[] = [
   { points: "200,0 300,0 300,100 200,100", fill: "none", stroke: "black", strokeWidth: 1 },
 ];
 
-const canvasSize = 500;
+const canvasWidth = 800;
+const canvasHeight = 600;
 const threshold = 5;
 
 test.describe('Snap Logic Unit Tests', () => {
   test('should return no snap when far from any target', () => {
     // Use position that doesn't accidentally align with polygon centers (which are at y=50)
     const proposedBox: BoundingBox = { x: 150, y: 150, width: 10, height: 10 };
-    const result = calculateSnap(proposedBox, mockPolygons, [], canvasSize, threshold);
+    const result = calculateSnap(proposedBox, mockPolygons, [], canvasWidth, canvasHeight, threshold);
 
     expect(result.translation.x).toBe(0);
     expect(result.translation.y).toBe(0);
@@ -33,7 +34,7 @@ test.describe('Snap Logic Unit Tests', () => {
     const proposedBox: BoundingBox = { x: 202, y: 150, width: 50, height: 50 };
     // dist = 2. < 5. Snap delta = 200 - 202 = -2.
 
-    const result = calculateSnap(proposedBox, mockPolygons, [], canvasSize, threshold);
+    const result = calculateSnap(proposedBox, mockPolygons, [], canvasWidth, canvasHeight, threshold);
 
     expect(result.translation.x).toBe(-2);
     expect(result.translation.y).toBe(0);
@@ -48,7 +49,7 @@ test.describe('Snap Logic Unit Tests', () => {
     // Polygon edges are at x=[0,50,100] and x=[200,250,300]
     // Using x=140, width=40 gives edges at [140,160,180] - no alignment
     const proposedBox: BoundingBox = { x: 140, y: 3, width: 40, height: 50 };
-    const result = calculateSnap(proposedBox, mockPolygons, [], canvasSize, threshold);
+    const result = calculateSnap(proposedBox, mockPolygons, [], canvasWidth, canvasHeight, threshold);
 
     expect(result.translation.x).toBe(0);
     expect(result.translation.y).toBe(-3);
@@ -74,7 +75,7 @@ test.describe('Snap Logic Unit Tests', () => {
      // Should snap to 100.
      
      const proposedBox: BoundingBox = { x: 102, y: 200, width: 10, height: 10 };
-     const result = calculateSnap(proposedBox, polygonsWithClose, [], canvasSize, threshold);
+     const result = calculateSnap(proposedBox, polygonsWithClose, [], canvasWidth, canvasHeight, threshold);
 
      expect(result.translation.x).toBe(-2); // Snap to 100
      expect(result.guidelines[0].pos).toBe(100);
@@ -98,7 +99,7 @@ test.describe('Snap Logic Unit Tests', () => {
       // Canvas edges: 0,0. too far.
       
       const proposedBox2: BoundingBox = { x: 102, y: 102, width: 10, height: 10 };
-      const result = calculateSnap(proposedBox2, middlePolys, [1], canvasSize, threshold);
+      const result = calculateSnap(proposedBox2, middlePolys, [1], canvasWidth, canvasHeight, threshold);
       
       // Should be no snap
       expect(result.translation.x).toBe(0);
