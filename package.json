@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "trunk serve",
+    "tailwind:build": "tailwindcss -i ./src/index.css -o ./tailwind.css --minify",
     "build": "trunk build --release",
     "lint": "echo 'Linting skipped for Rust/Yew project'",
     "preview": "trunk serve --release",

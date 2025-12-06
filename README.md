@@ -31,6 +31,8 @@ npm run preview
 npm run lint
 ```
 
+Tailwind CSS is compiled automatically by Trunk's pre-build hook (`scripts/prebuild.sh`); it will create the test output folders Playwright uses so `trunk serve` doesn't fail on missing directories, and will generate `tailwind.css` when `tailwindcss` is installed. If you haven't run `npm install`, the hook will skip the Tailwind build (leaving a placeholder file) and print a reminder.
+
 ## Testing
 
 This project includes comprehensive E2E tests using Playwright that automate the manual testing workflow.

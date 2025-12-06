@@ -1,7 +1,7 @@
 [[hooks]]
 stage = "pre_build"
 command = "sh"
-command_arguments = ["-c", "echo 'Starting Yew build...'"]
+command_arguments = ["-c", "./scripts/prebuild.sh"]
 
 [build]
 target = "index.html"
@@ -12,8 +12,6 @@ ignore = [
     "dist",
     "target",
     "node_modules",
-    "playwright-report",
-    "test-results",
 ]
 
 [serve]
