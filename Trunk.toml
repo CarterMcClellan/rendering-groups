@@ -1,0 +1,22 @@
+[[hooks]]
+stage = "pre_build"
+command = "sh"
+command_arguments = ["-c", "echo 'Starting Yew build...'"]
+
+[build]
+target = "index.html"
+dist = "dist"
+
+[watch]
+ignore = [
+    "dist",
+    "target",
+    "node_modules",
+    "playwright-report",
+    "test-results",
+]
+
+[serve]
+addresses = ["127.0.0.1"]
+port = 5173
+open = false
