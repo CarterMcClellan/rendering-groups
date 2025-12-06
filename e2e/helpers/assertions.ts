@@ -4,8 +4,8 @@ export async function assertSelectionState(
   page: Page,
   expectedIds: number[]
 ): Promise<void> {
-  const debugState = page.locator('[data-testid="debug-state"]');
-  const actualIdsAttr = await debugState.getAttribute('data-selection-ids');
+  const svg = page.locator('[data-testid="main-canvas"]');
+  const actualIdsAttr = await svg.getAttribute('data-selection-ids');
 
   if (expectedIds.length === 0) {
     expect(actualIdsAttr, 'Expected no selection (empty string)').toBe('');
@@ -20,9 +20,9 @@ export async function assertFlipState(
   expectedX: boolean,
   expectedY: boolean
 ): Promise<void> {
-  const debugState = page.locator('[data-testid="debug-state"]');
-  const actualFlipX = await debugState.getAttribute('data-flip-x');
-  const actualFlipY = await debugState.getAttribute('data-flip-y');
+  const svg = page.locator('[data-testid="main-canvas"]');
+  const actualFlipX = await svg.getAttribute('data-flip-x');
+  const actualFlipY = await svg.getAttribute('data-flip-y');
 
   const flipXBool = actualFlipX === 'true';
   const flipYBool = actualFlipY === 'true';

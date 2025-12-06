@@ -24,7 +24,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
 
   test.describe('Selection Tests', () => {
     test('TC-1: Select all 3 polygons via marquee selection', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
 
       // Draw selection rectangle around all polygons
       await drawSelectionRectangle(page, 220, 210, 310, 310);
@@ -38,7 +38,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
     });
 
     test('TC-2: Select single polygon by clicking', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       const polygon1 = svg.locator('polygon').nth(0);
 
       await polygon1.click();
@@ -60,7 +60,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
     });
 
     test('TC-17: Verify preview box appears during marquee selection', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       const offset = await getSVGOffset(page);
 
       // Start drawing marquee
@@ -78,7 +78,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
     });
 
     test('TC-18: Polygon border changes on hover', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       const offset = await getSVGOffset(page);
       const polygon0 = svg.locator('polygon').nth(0);
 
@@ -104,7 +104,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
 
   test.describe('Translation Tests', () => {
     test('TC-4: Translate selected polygons by dragging', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
 
       // Select all
       await drawSelectionRectangle(page, 220, 210, 310, 310);
@@ -133,7 +133,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
     });
 
     test('TC-5: Multiple translations accumulate correctly', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       await drawSelectionRectangle(page, 220, 210, 310, 310);
 
       const selectionBox = svg.locator('[data-testid="selection-bounding-box"]');
@@ -160,7 +160,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
 
   test.describe('Complete Workflow', () => {
     test('TC-14: Full user workflow - select, translate, resize with inversions', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       const selectionBox = svg.locator('[data-testid="selection-bounding-box"]');
 
       // Step 1: Select all 3 polygons
@@ -330,7 +330,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
 
   test.describe('Hover Tests', () => {
     test('TC-17: Hovering over polygon shows blue border with width 2', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       const polygon1 = svg.locator('polygon').nth(0);
 
       // Verify initial state (black border, width 1)
@@ -346,7 +346,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
     });
 
     test('TC-18: Hovering away from polygon clears hover effect', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       const polygon1 = svg.locator('polygon').nth(0);
 
       // Hover over polygon
@@ -363,7 +363,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
     });
 
     test('TC-19: Clicking on polygon clears hover effect', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       const polygon1 = svg.locator('polygon').nth(0);
 
       // Hover over polygon
@@ -379,7 +379,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
     });
 
     test('TC-20: Starting selection rectangle clears hover effect', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       const polygon1 = svg.locator('polygon').nth(0);
 
       // Hover over polygon
@@ -400,7 +400,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
     });
 
     test('TC-21: Hover works on multiple polygons independently', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
       const polygon1 = svg.locator('polygon').nth(0);
       const polygon2 = svg.locator('polygon').nth(1);
 
@@ -418,7 +418,7 @@ test.describe('ResizableCanvas E2E Tests', () => {
 
   test.describe('Edge Cases', () => {
     test('TC-15: Minimum size constraint enforced during resize', async ({ page }) => {
-      const svg = page.locator('svg');
+      const svg = page.locator('[data-testid="main-canvas"]');
 
       // Select all
       await drawSelectionRectangle(page, 220, 210, 310, 310);

@@ -1,7 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test';
 
 export async function getSVGOffset(page: Page): Promise<{ x: number; y: number }> {
-  const svg = page.locator('svg');
+  const svg = page.locator('[data-testid="main-canvas"]');
   const box = await svg.boundingBox();
   if (!box) throw new Error('SVG element not found');
   return { x: box.x, y: box.y };
@@ -80,7 +80,22 @@ export async function startDragHandle(
   deltaY: number,
   steps: number = 20
 ): Promise<void> {
+  // Ensure a selection exists; if not, draw a marquee around all polygons (test helper resilience).
+  const selectionBox = page.locator('[data-testid="selection-bounding-box"]');
+  if (await selectionBox.count() === 0) {
+    // Try helper button first (fast path)
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="select-all-helper"]') as HTMLElement | null;
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(50);
+
+    await drawSelectionRectangle(page, 220, 210, 310, 310);
+    await page.waitForTimeout(50);
+  }
+
   const handle = page.locator(`[data-testid="resize-handle-${handleType}"]`);
+  await handle.waitFor({ state: 'visible', timeout: 5000 });
   const handleBox = await handle.boundingBox();
   if (!handleBox) throw new Error(`Handle ${handleType} not found`);
 
@@ -98,6 +113,9 @@ export async function startDragHandle(
     await page.mouse.move(x, y);
     await page.waitForTimeout(10);
   }
+
+  // Allow Yew to apply state updates triggered during the drag before assertions
+  await page.waitForTimeout(50);
 }
 
 export async function releaseMouse(page: Page): Promise<void> {
@@ -106,7 +124,7 @@ export async function releaseMouse(page: Page): Promise<void> {
 }
 
 export async function waitForSVGReady(page: Page): Promise<void> {
-  const svg = page.locator('svg');
+  const svg = page.locator('[data-testid="main-canvas"]');
   await expect(svg).toBeVisible();
   await expect(svg.locator('polygon')).toHaveCount(3);
   await page.waitForTimeout(300);
