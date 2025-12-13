@@ -23,8 +23,8 @@ pub fn properties_panel(props: &PropertiesPanelProps) -> Html {
     let bbox = props.bounding_box.as_ref();
 
     html! {
-        <div class="fixed right-0 top-0 w-80 h-full bg-white border-l border-gray-300 p-4 overflow-y-auto">
-            <h2 class="text-lg font-semibold mb-4">{"Properties"}</h2>
+        <div class="w-80 flex-none bg-white border-l border-gray-300 p-4 overflow-y-auto">
+            <h2 class="text-lg font-semibold pb-3 mb-4 border-b border-gray-200">{"Properties"}</h2>
 
             if selected.is_some() && bbox.is_some() {
                 <div class="space-y-4">
@@ -45,7 +45,7 @@ pub fn properties_panel(props: &PropertiesPanelProps) -> Html {
                                         }
                                     })
                                 }
-                                class="w-12 h-8 rounded border border-gray-300"
+                                class="w-12 h-8 rounded border border-gray-300 bg-white cursor-pointer"
                             />
                             <input
                                 type="text"
@@ -58,7 +58,7 @@ pub fn properties_panel(props: &PropertiesPanelProps) -> Html {
                                         }
                                     })
                                 }
-                                class="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                                class="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
                             />
                         </div>
                     </div>
@@ -80,7 +80,7 @@ pub fn properties_panel(props: &PropertiesPanelProps) -> Html {
                                         }
                                     })
                                 }
-                                class="w-12 h-8 rounded border border-gray-300"
+                                class="w-12 h-8 rounded border border-gray-300 bg-white cursor-pointer"
                             />
                             <input
                                 type="text"
@@ -93,7 +93,7 @@ pub fn properties_panel(props: &PropertiesPanelProps) -> Html {
                                         }
                                     })
                                 }
-                                class="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                                class="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
                             />
                         </div>
                     </div>
@@ -120,7 +120,7 @@ pub fn properties_panel(props: &PropertiesPanelProps) -> Html {
                                             }
                                         })
                                     }
-                                    class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
                                 />
                             </div>
                             <div>
@@ -139,7 +139,7 @@ pub fn properties_panel(props: &PropertiesPanelProps) -> Html {
                                             }
                                         })
                                     }
-                                    class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
                                 />
                             </div>
                         </div>
@@ -167,7 +167,7 @@ pub fn properties_panel(props: &PropertiesPanelProps) -> Html {
                                             }
                                         })
                                     }
-                                    class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
                                 />
                             </div>
                             <div>
@@ -186,7 +186,7 @@ pub fn properties_panel(props: &PropertiesPanelProps) -> Html {
                                             }
                                         })
                                     }
-                                    class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
                                 />
                             </div>
                         </div>

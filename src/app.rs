@@ -39,8 +39,6 @@ pub fn app() -> Html {
     }
 
     html! {
-        <div class="flex h-screen overflow-hidden">
-            <ResizableCanvas />
-        </div>
+        <ResizableCanvas />
     }
 }

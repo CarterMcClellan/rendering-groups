@@ -11,8 +11,8 @@ pub struct LayersPanelProps {
 #[function_component(LayersPanel)]
 pub fn layers_panel(props: &LayersPanelProps) -> Html {
     html! {
-        <div class="w-64 bg-white border-r border-gray-300 p-4">
-            <h2 class="text-lg font-semibold mb-4">{"Layers"}</h2>
+        <div class="w-64 flex-none bg-white border-r border-gray-300 p-4 overflow-y-auto">
+            <h2 class="text-lg font-semibold pb-3 mb-4 border-b border-gray-200">{"Layers"}</h2>
             <div class="space-y-2">
                 {
                     props.polygons.iter().enumerate().map(|(idx, polygon)| {
@@ -33,8 +33,11 @@ pub fn layers_panel(props: &LayersPanelProps) -> Html {
                                     "p-2",
                                     "rounded",
                                     "cursor-pointer",
+                                    "border",
+                                    "border-gray-200",
                                     "hover:bg-gray-100",
-                                    if is_selected { "bg-blue-100" } else { "" }
+                                    "hover:border-gray-300",
+                                    if is_selected { "bg-blue-100 border-blue-300" } else { "bg-white" }
                                 )}
                             >
                                 <div

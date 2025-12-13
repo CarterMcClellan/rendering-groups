@@ -68,6 +68,7 @@ pub fn resizable_canvas() -> Html {
     let move_start = use_mut_ref(|| None::<(Point, Point)>);
     let resize_start_anchor = use_mut_ref(|| None::<Point>);
     let resize_base_signed = use_mut_ref(|| None::<Dimensions>);
+    let resize_current_dims = use_mut_ref(|| None::<Dimensions>);
 
     // Keyboard shortcut for Cmd/Ctrl+K (toggle Design/Chat tabs)
     {
@@ -227,6 +228,7 @@ pub fn resizable_canvas() -> Html {
         let guidelines = guidelines.clone();
         let resize_base_signed = resize_base_signed.clone();
         let resize_start_anchor = resize_start_anchor.clone();
+        let resize_current_dims = resize_current_dims.clone();
 
         Callback::from(move |_: ()| {
             if selected_ids.is_empty() {
@@ -239,15 +241,24 @@ pub fn resizable_canvas() -> Html {
                 .as_ref()
                 .cloned()
                 .unwrap_or_else(|| Dimensions::new(base_dimensions.width, base_dimensions.height));
+
+            // Use resize_current_dims if available (from ref, immediately visible)
+            // Otherwise fall back to dimensions state
+            let current_dims = resize_current_dims
+                .borrow()
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| Dimensions::new(dimensions.width, dimensions.height));
+
             let current_scale_x = if selected_ids.is_empty() {
                 1.0
             } else {
-                dimensions.width / signed_base.width
+                current_dims.width / signed_base.width
             };
             let current_scale_y = if selected_ids.is_empty() {
                 1.0
             } else {
-                dimensions.height / signed_base.height
+                current_dims.height / signed_base.height
             };
 
             let origin = *fixed_anchor;
@@ -301,6 +312,7 @@ pub fn resizable_canvas() -> Html {
             guidelines.set(Vec::new());
             resize_base_signed.replace(None);
             resize_start_anchor.replace(None);
+            resize_current_dims.replace(None);
         })
     };
 
@@ -526,6 +538,8 @@ pub fn resizable_canvas() -> Html {
         let active_handle = active_handle.clone();
         let svg_ref = svg_ref.clone();
         let resize_start_anchor = resize_start_anchor.clone();
+        let resize_base_signed = resize_base_signed.clone();
+        let resize_current_dims = resize_current_dims.clone();
         let dimensions = dimensions.clone();
         let base_dimensions = base_dimensions.clone();
         let fixed_anchor = fixed_anchor.clone();
@@ -545,6 +559,7 @@ pub fn resizable_canvas() -> Html {
                 let mousemove_listener = {
                     let svg_ref = svg_ref.clone();
                 let resize_start_anchor = resize_start_anchor.clone();
+                let resize_current_dims = resize_current_dims.clone();
                 let dimensions = dimensions.clone();
                 let base_dimensions = base_dimensions.clone();
                 let resize_base_signed = resize_base_signed.clone();
@@ -593,10 +608,13 @@ pub fn resizable_canvas() -> Html {
                                 new_height_signed.signum()
                             };
 
-                            dimensions.set(Dimensions::new(
+                            let new_dims = Dimensions::new(
                                 width_sign * new_width_signed.abs().max(MIN_SIZE),
                                 height_sign * new_height_signed.abs().max(MIN_SIZE),
-                            ));
+                            );
+                            // Update both the ref (for immediate commit access) and state (for rendering)
+                            resize_current_dims.replace(Some(new_dims));
+                            dimensions.set(new_dims);
                             fixed_anchor.set(anchor_point);
                         }
                     }
@@ -891,7 +909,6 @@ pub fn resizable_canvas() -> Html {
                         y2={guideline.end.to_string()}
                         stroke="red"
                         stroke-width="1"
-                        stroke-dasharray="4"
                     />
                 },
                 GuidelineType::Horizontal => html! {
@@ -902,7 +919,6 @@ pub fn resizable_canvas() -> Html {
                         y2={guideline.pos.to_string()}
                         stroke="red"
                         stroke-width="1"
-                        stroke-dasharray="4"
                     />
                 },
             }
@@ -938,11 +954,51 @@ pub fn resizable_canvas() -> Html {
         let stroke = if is_hovered { "#3b82f6" } else { &polygon.stroke };
         let stroke_width = if is_hovered { 2.0 } else { polygon.stroke_width };
 
-        let onclick = {
-            let on_polygon_click = on_polygon_click.clone();
+        // Combined mousedown handler: select polygon AND start moving
+        let onmousedown = {
+            let svg_ref = svg_ref.clone();
+            let polygons = polygons.clone();
+            let selected_ids = selected_ids.clone();
+            let fixed_anchor = fixed_anchor.clone();
+            let dimensions = dimensions.clone();
+            let base_dimensions = base_dimensions.clone();
+            let selection_origin = selection_origin.clone();
+            let translation = translation.clone();
+            let guidelines = guidelines.clone();
+            let resize_base_signed = resize_base_signed.clone();
+            let resize_start_anchor = resize_start_anchor.clone();
+            let is_moving = is_moving.clone();
+            let move_start = move_start.clone();
+            let hovered_id = hovered_id.clone();
+
             Callback::from(move |e: MouseEvent| {
                 e.stop_propagation();
-                on_polygon_click.emit(idx);
+
+                // Get the polygon and compute its bounding box
+                let selected_polygon = polygons.get(idx).cloned();
+                if let Some(poly) = selected_polygon {
+                    let bbox = calculate_bounding_box(&[poly]);
+
+                    // Set selection state
+                    selected_ids.set(vec![idx]);
+                    let anchor = Point::new(bbox.x, bbox.y);
+                    fixed_anchor.set(anchor);
+                    dimensions.set(Dimensions::new(bbox.width, bbox.height));
+                    base_dimensions.set(Dimensions::new(bbox.width, bbox.height));
+                    selection_origin.set(Some(anchor));
+                    *translation.borrow_mut() = Point::zero();
+                    guidelines.set(Vec::new());
+                    resize_base_signed.replace(None);
+                    resize_start_anchor.replace(None);
+
+                    // Start moving immediately
+                    if let Some(svg) = svg_ref.cast::<SvgsvgElement>() {
+                        let point = client_to_svg_coords(&e, &svg);
+                        move_start.replace(Some((point, anchor)));
+                        is_moving.set(true);
+                        hovered_id.set(None);
+                    }
+                }
             })
         };
 
@@ -968,7 +1024,7 @@ pub fn resizable_canvas() -> Html {
                 stroke={stroke.to_string()}
                 stroke-width={stroke_width.to_string()}
                 style="cursor: pointer;"
-                onclick={onclick}
+                onmousedown={onmousedown}
                 onmouseenter={onmouseenter}
                 onmouseleave={onmouseleave}
             />
@@ -989,7 +1045,7 @@ pub fn resizable_canvas() -> Html {
     };
 
     html! {
-        <div class="flex h-screen overflow-hidden">
+        <div class="flex w-full h-screen overflow-hidden">
             // Layers Panel (Left)
             <LayersPanel
                 polygons={(*polygons).clone()}
@@ -1010,7 +1066,8 @@ pub fn resizable_canvas() -> Html {
                         data-dim-width={dimensions.width.to_string()}
                         data-dim-height={dimensions.height.to_string()}
                         data-selection-ids={selected_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>().join(",")}
-                        style="border: 1px solid #ccc; background: white; background-image: repeating-linear-gradient(0deg, transparent, transparent 19px, #ddd 19px, #ddd 20px), repeating-linear-gradient(90deg, transparent, transparent 19px, #ddd 19px, #ddd 20px);"
+                        class="canvas-dots"
+                        style="border: 1px solid #ccc; background-color: white;"
                         onmousedown={on_svg_mousedown}
                         onmousemove={on_svg_mousemove}
                         onmouseup={on_svg_mouseup}
@@ -1033,7 +1090,6 @@ pub fn resizable_canvas() -> Html {
                                 fill="none"
                                 stroke="#3b82f6"
                                 stroke-width="2"
-                                stroke-dasharray="4"
                                 style="cursor: move; pointer-events: all;"
                                 onmousedown={on_bbox_mousedown}
                             />
@@ -1059,7 +1115,6 @@ pub fn resizable_canvas() -> Html {
                                         fill="rgba(59, 130, 246, 0.1)"
                                         stroke="#3b82f6"
                                         stroke-width="1"
-                                        stroke-dasharray="2"
                                     />
                                 }
                             } else {
@@ -1080,7 +1135,6 @@ pub fn resizable_canvas() -> Html {
                                         fill="none"
                                         stroke="#3b82f6"
                                         stroke-width="1"
-                                        stroke-dasharray="4"
                                     />
                                 }
                             } else {
