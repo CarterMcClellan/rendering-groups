@@ -10,7 +10,6 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-tailwind.css
 *.local
 
 # Editor directories and files
@@ -24,11 +23,9 @@ tailwind.css
 *.sln
 *.sw?
 
-# Playwright
-test-results/
-test-results-snap/
-snap-test-videos/
-playwright-report/
-playwright/.cache/
+# Playwright (in tests/ directory)
+tests/test-results/
+tests/playwright-report/
+tests/playwright/.cache/
 
 target

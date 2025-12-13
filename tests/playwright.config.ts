@@ -27,7 +27,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run dev',
+    command: 'cd .. && trunk serve',
+    cwd: __dirname,
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000, // 2 minutes for Rust/WASM build
